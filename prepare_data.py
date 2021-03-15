@@ -9,7 +9,7 @@ from tqdm import tqdm
 from torchvision import datasets
 from torchvision.transforms import functional as trans_fn
 
-from dataloaders.sequencedataloader import txt_dataloader
+from dataloaders.sequencedataloader import txt_dataloader_styleGAN
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 
@@ -49,10 +49,13 @@ def prepare(
 ):
     resize_fn = partial(resize_worker, sizes=sizes, resample=resample)
 
-    # files = sorted(dataset.imgs, key=lambda x: x[0])
+# files = sorted(dataset.imgs, key=lambda x: x[0])
+# files = [(i, file) for i, (file, label) in enumerate(files)]
+
     files = sorted(dataset.images, key=lambda x: x[0])
 
-    files = [(i, file) for i, (file, label) in enumerate(files)]
+    files = [(i, file) for i, file in enumerate(files)]
+
     total = 0
 
     with multiprocessing.Pool(n_worker) as pool:
@@ -122,7 +125,7 @@ if __name__ == "__main__":
 
     elif args.image_type == 'rgb':
         train_path = '/home/ballardini/DualBiSeNet/alcala-26.01.2021_selected/prefix_all.txt'
-        dataset_ = txt_dataloader(train_path, transform=rgb_image_test_transforms, decimateStep=args.decimate)
+        dataset_ = txt_dataloader_styleGAN(train_path, transform=rgb_image_test_transforms, decimateStep=args.decimate)
         # dataloader_ = DataLoader(dataset_, batch_size=args.batch_size, shuffle=True, num_workers=args.n_worker,
         #                          drop_last=True)
         imgset = dataset_  # dataloader_ pass the dataset, not the dataloader
