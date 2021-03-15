@@ -10,7 +10,6 @@ from torchvision import datasets
 from torchvision.transforms import functional as trans_fn
 
 from dataloaders.sequencedataloader import txt_dataloader_styleGAN
-from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 
 
