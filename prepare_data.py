@@ -49,12 +49,8 @@ def prepare(
 ):
     resize_fn = partial(resize_worker, sizes=sizes, resample=resample)
 
-# files = sorted(dataset.imgs, key=lambda x: x[0])
-# files = [(i, file) for i, (file, label) in enumerate(files)]
-
-    files = sorted(dataset.images, key=lambda x: x[0])
-
-    files = [(i, file) for i, file in enumerate(files)]
+    files = sorted(dataset.imgs, key=lambda x: x[0])
+    files = [(i, file) for i, (file, label) in enumerate(files)]
 
     total = 0
 
