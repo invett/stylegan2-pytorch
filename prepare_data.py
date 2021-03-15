@@ -111,23 +111,14 @@ if __name__ == "__main__":
     rgb_image_test_transforms = transforms.Compose([transforms.Resize((224, 224)), transforms.ToTensor(),
                                                     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-    if args.image_type == 'warping':
-        train_path = '/home/ballardini/DualBiSeNet/alcala-26.01.2021_selected_warped/prefix_all.txt'
-        dataset_ = txt_dataloader(train_path, transform=rgb_image_test_transforms, decimateStep=args.decimate)
-        dataloader_ = DataLoader(dataset_, batch_size=args.batch_size, shuffle=True, num_workers=args.n_worker,
-                                 drop_last=True)
-        imgset = dataloader_
+    # warping   train_path = '/home/ballardini/DualBiSeNet/alcala-26.01.2021_selected_warped/prefix_all.txt'
+    # rgb       train_path = '/home/ballardini/DualBiSeNet/alcala-26.01.2021_selected/prefix_all.txt'
+    train_path = args.path
+    dataset_ = txt_dataloader_styleGAN(train_path, transform=rgb_image_test_transforms, decimateStep=args.decimate)
+    imgset = dataset_
 
-    elif args.image_type == 'rgb':
-        train_path = '/home/ballardini/DualBiSeNet/alcala-26.01.2021_selected/prefix_all.txt'
-        dataset_ = txt_dataloader_styleGAN(train_path, transform=rgb_image_test_transforms, decimateStep=args.decimate)
-        # dataloader_ = DataLoader(dataset_, batch_size=args.batch_size, shuffle=True, num_workers=args.n_worker,
-        #                          drop_last=True)
-        imgset = dataset_  # dataloader_ pass the dataset, not the dataloader
-
-    else:
-        # default stylegan2
-        imgset = datasets.ImageFolder(args.path)
+    # default old/stylegan2
+    # imgset = datasets.ImageFolder(args.path)
 
     print('Dataset will be written in:', str(args.out))
 
