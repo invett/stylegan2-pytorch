@@ -129,5 +129,7 @@ if __name__ == "__main__":
         # default stylegan2
         imgset = datasets.ImageFolder(args.path)
 
+    print('Dataset will be written in:', str(args.out))
+
     with lmdb.open(args.out, map_size=1024 ** 4, readahead=False) as env:
         prepare(env, imgset, args.n_worker, sizes=sizes, resample=resample)
