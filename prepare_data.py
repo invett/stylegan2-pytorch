@@ -9,6 +9,9 @@ from tqdm import tqdm
 from torchvision import datasets
 from torchvision.transforms import functional as trans_fn
 
+from dataloaders.sequencedataloader import txt_dataloader
+from torch.utils.data import DataLoader
+import torchvision.transforms as transforms
 
 def resize_and_convert(img, size, resample, quality=100):
     img = trans_fn.resize(img, size, resample)
@@ -86,6 +89,14 @@ if __name__ == "__main__":
     )
     parser.add_argument("path", type=str, help="path to the image dataset")
 
+    parser.add_argument("--image_type", type=str, default='original-stylegan2',
+                        help="Choose between warping or rgb or the original dataloader",
+                        choices=['rgb', 'warping', 'original-stylegan2'])
+
+    parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
+    parser.add_argument('--decimate', type=int, default=1, help='How much of the points will remain after '
+                                                                'decimation')
+
     args = parser.parse_args()
 
     resample_map = {"lanczos": Image.LANCZOS, "bilinear": Image.BILINEAR}
@@ -95,7 +106,27 @@ if __name__ == "__main__":
 
     print(f"Make dataset of image sizes:", ", ".join(str(s) for s in sizes))
 
-    imgset = datasets.ImageFolder(args.path)
+    # for GANS, normalize with these values https://pytorch.org/tutorials/beginner/dcgan_faces_tutorial.html
+    rgb_image_test_transforms = transforms.Compose([transforms.Resize((224, 224)), transforms.ToTensor(),
+                                                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+
+    if args.image_type == 'warping':
+        train_path = '/home/ballardini/DualBiSeNet/alcala-26.01.2021_selected_warped/prefix_all.txt'
+        dataset_ = txt_dataloader(train_path, transform=rgb_image_test_transforms, decimateStep=args.decimate)
+        dataloader_ = DataLoader(dataset_, batch_size=args.batch_size, shuffle=True, num_workers=args.n_worker,
+                                 drop_last=True)
+        imgset = dataloader_
+
+    elif args.image_type == 'rgb':
+        train_path = '/home/ballardini/DualBiSeNet/alcala-26.01.2021_selected/prefix_all.txt'
+        dataset_ = txt_dataloader(train_path, transform=rgb_image_test_transforms, decimateStep=args.decimate)
+        dataloader_ = DataLoader(dataset_, batch_size=args.batch_size, shuffle=True, num_workers=args.n_worker,
+                                 drop_last=True)
+        imgset = dataloader_
+
+    else:
+        # default stylegan2
+        imgset = datasets.ImageFolder(args.path)
 
     with lmdb.open(args.out, map_size=1024 ** 4, readahead=False) as env:
         prepare(env, imgset, args.n_worker, sizes=sizes, resample=resample)
