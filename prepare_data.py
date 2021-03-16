@@ -108,8 +108,9 @@ if __name__ == "__main__":
     print(f"Make dataset of image sizes:", ", ".join(str(s) for s in sizes))
 
     # for GANS, normalize with these values https://pytorch.org/tutorials/beginner/dcgan_faces_tutorial.html
-    rgb_image_test_transforms = transforms.Compose([transforms.Resize((224, 224)), transforms.ToTensor(),
-                                                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+    # UPDATE: DISABLING THIS AS NOT PROVIDED WITH ORIGINAL datasets.ImageFolder(args.path)
+    # rgb_image_test_transforms = transforms.Compose([transforms.Resize((224, 224)), transforms.ToTensor(),
+    #                                                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
     # warping   train_path = '/home/ballardini/DualBiSeNet/alcala-26.01.2021_selected_warped/prefix_all.txt'
     # rgb       train_path = '/home/ballardini/DualBiSeNet/alcala-26.01.2021_selected/prefix_all.txt'
