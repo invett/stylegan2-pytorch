@@ -88,7 +88,7 @@ if __name__ == "__main__":
         default="lanczos",
         help="resampling methods for resizing images",
     )
-    parser.add_argument("path", type=str, help="path to the image dataset")
+    parser.add_argument("--path", type=str, action='append', help="path(s) to the image dataset", required=True)
 
     parser.add_argument("--image_type", type=str, default='original-stylegan2',
                         help="Choose between warping or rgb or the original dataloader",
