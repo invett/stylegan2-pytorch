@@ -90,9 +90,9 @@ if __name__ == "__main__":
     )
     parser.add_argument("--path", type=str, action='append', help="path(s) to the image dataset", required=True)
 
-    parser.add_argument("--image_type", type=str, default='original-stylegan2',
-                        help="Choose between warping or rgb or the original dataloader",
-                        choices=['rgb', 'warping', 'original-stylegan2'])
+    # parser.add_argument("--image_type", type=str, default='original-stylegan2',
+    #                     help="Choose between warping or rgb or the original dataloader",
+    #                     choices=['rgb', 'warping', 'original-stylegan2'])
 
     parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
     parser.add_argument('--decimate', type=int, default=1, help='How much of the points will remain after '
