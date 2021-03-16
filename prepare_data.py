@@ -115,7 +115,7 @@ if __name__ == "__main__":
     # warping   train_path = '/home/ballardini/DualBiSeNet/alcala-26.01.2021_selected_warped/prefix_all.txt'
     # rgb       train_path = '/home/ballardini/DualBiSeNet/alcala-26.01.2021_selected/prefix_all.txt'
     train_path = args.path
-    dataset_ = txt_dataloader_styleGAN(train_path, transform=rgb_image_test_transforms, decimateStep=args.decimate)
+    dataset_ = txt_dataloader_styleGAN(train_path, decimateStep=args.decimate)
     imgset = dataset_
 
     # default old/stylegan2
