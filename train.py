@@ -12,6 +12,10 @@ import torch.distributed as dist
 from torchvision import transforms, utils
 from tqdm import tqdm
 
+from PIL import Image
+import matplotlib.pyplot as plt
+from miscellaneous.utils import send_telegram_picture, send_telegram_message
+
 try:
     import wandb
 
@@ -313,6 +317,18 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
                         normalize=True,
                         range=(-1, 1),
                     )
+                    grid = make_grid(sample, nrow=int(args.n_sample ** 0.5),normalize=True, range=(-1, 1))
+                    # Add 0.5 after unnormalizing to [0, 255] to round to nearest integer
+                    ndarr = grid.mul(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to('cpu', torch.uint8).numpy().astype(np.float32)
+                    im = Image.fromarray(ndarr)
+                    label = 'GAN - GRID\ncurrent iter: ' + str(i)
+                    a = plt.figure()
+                    plt.imshow(ndarr)
+                    send_telegram_picture(a, label)
+                    plt.close('all')
+                    if wandb and args.wandb:
+                        wandb.log({"current grid": wandb.Image(im, caption=f"Iter:{str(i).zfill(6)}")} )
+                    
 
             if i % 10000 == 0:
                 torch.save(
