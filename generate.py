@@ -2,7 +2,6 @@ import argparse
 
 import torch
 from torchvision import utils
-from model import Generator
 from tqdm import tqdm
 
 
@@ -68,12 +67,22 @@ if __name__ == "__main__":
         default="stylegan2-001",
         help="file name for the generated images <name>-<num_image>.png",
     )
+    parser.add_argument('--arch', type=str, default='stylegan2', help='model architectures (stylegan2 | swagan)')
+    
 
     args = parser.parse_args()
 
     args.latent = 512
     args.n_mlp = 8
+    
 
+    if args.arch == 'stylegan2':
+        from model import Generator
+
+    elif args.arch == 'swagan':
+        from swagan import Generator
+        
+        
     g_ema = Generator(
         args.size, args.latent, args.n_mlp, channel_multiplier=args.channel_multiplier
     ).to(device)
