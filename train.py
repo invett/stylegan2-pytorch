@@ -323,7 +323,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
                     ndarr = grid.mul(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to('cpu', torch.uint8).numpy().astype(np.float32)
                     im = ndarr
                     label = 'GAN - GRID\ncurrent iter: ' + str(i)
-                    a = plt.figure()
+                    a = plt.figure(dpi=600)
                     plt.imshow(ndarr.astype('uint8'))
                     send_telegram_picture(a, label)
                     plt.close('all')
