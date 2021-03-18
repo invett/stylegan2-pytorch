@@ -10,7 +10,6 @@ from PIL import Image
 from tqdm import tqdm
 
 import lpips
-from model import Generator
 
 
 def noise_regularize(noises):
@@ -81,6 +80,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--ckpt", type=str, required=True, help="path to the model checkpoint"
     )
+    
+    parser.add_argument('--arch', type=str, default='stylegan2', help='model architectures (stylegan2 | swagan)')
     parser.add_argument(
         "--size", type=int, default=256, help="output image sizes of the generator"
     )
@@ -146,6 +147,13 @@ if __name__ == "__main__":
 
     imgs = torch.stack(imgs, 0).to(device)
 
+    
+    if args.arch == 'stylegan2':
+        from model import Generator
+
+    elif args.arch == 'swagan':
+        from swagan import Generator
+        
     g_ema = Generator(args.size, 512, 8)
     g_ema.load_state_dict(torch.load(args.ckpt)["g_ema"], strict=False)
     g_ema.eval()
