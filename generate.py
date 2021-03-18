@@ -19,7 +19,7 @@ def generate(args, g_ema, device, mean_latent):
 
             utils.save_image(
                 sample,
-                f"sample/{str(i).zfill(6)}.png",
+                f"generated_samples/{args.file_name}-{str(i).zfill(6)}.png",
                 nrow=1,
                 normalize=True,
                 range=(-1, 1),
@@ -61,6 +61,12 @@ if __name__ == "__main__":
         type=int,
         default=2,
         help="channel multiplier of the generator. config-f = 2, else = 1",
+    )
+    parser.add_argument(
+        "--file_name",
+        type=str,
+        default="stylegan2-001",
+        help="file name for the generated images <name>-<num_image>.png",
     )
 
     args = parser.parse_args()
