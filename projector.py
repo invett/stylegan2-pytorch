@@ -148,7 +148,7 @@ if __name__ == "__main__":
     # txtdataloader
     train_path = args.path
     dataset_ = txt_dataloader_styleGAN(train_path, decimateStep=1)
-    args.files = dataset_.images[:1]
+    args.files = dataset_.images[:]
 
     for imgfile in args.files:
         img = transform(Image.open(imgfile).convert("RGB"))
