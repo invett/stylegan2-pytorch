@@ -4,7 +4,10 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-from skimage.measure import compare_ssim
+# from skimage.measure import compare_ssim
+# https://stackoverflow.com/questions/55178229/importerror-cannot-import-name-structural-similarity-error
+from skimage.metrics import structural_similarity as compare_ssim
+
 import torch
 from torch.autograd import Variable
 

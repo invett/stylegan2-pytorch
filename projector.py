@@ -9,8 +9,10 @@ from torchvision import transforms
 from PIL import Image
 from tqdm import tqdm
 
-import lpips
+from dataloaders.sequencedataloader import txt_dataloader_styleGAN
 
+import lpips
+import numpy as np
 
 def noise_regularize(noises):
     loss = 0
@@ -120,9 +122,11 @@ if __name__ == "__main__":
         action="store_true",
         help="allow to use distinct latent codes to each layers",
     )
-    parser.add_argument(
-        "files", metavar="FILES", nargs="+", help="path to image files to be projected"
-    )
+    # parser.add_argument(
+    #     "files", metavar="FILES", nargs="+", help="path to image files to be projected"
+    # )
+
+    parser.add_argument("--path", type=str, action='append', help="path(s) to the image dataset", required=True)
 
     args = parser.parse_args()
 
@@ -141,13 +145,17 @@ if __name__ == "__main__":
 
     imgs = []
 
+    # txtdataloader
+    train_path = args.path
+    dataset_ = txt_dataloader_styleGAN(train_path, decimateStep=1)
+    args.files = dataset_.images[:1]
+
     for imgfile in args.files:
         img = transform(Image.open(imgfile).convert("RGB"))
         imgs.append(img)
 
     imgs = torch.stack(imgs, 0).to(device)
 
-    
     if args.arch == 'stylegan2':
         from model import Generator
 
@@ -254,3 +262,11 @@ if __name__ == "__main__":
         pil_img.save(img_name)
 
     torch.save(result_file, filename)
+
+    for i, a in enumerate(args.path):
+        filename_txt = os.path.splitext(os.path.split(a)[1])[0] + '_embeddings.txt'
+        filename_npy = os.path.splitext(os.path.split(a)[1])[0] + '_embeddings.npy'
+        with open(filename_txt, 'wb') as f:
+            np.savetxt(f, latent_in.cpu().detach().numpy())
+        with open(filename_npy, 'wb') as f:
+            np.save(f, latent_in.cpu().detach().numpy())
