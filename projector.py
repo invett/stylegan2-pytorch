@@ -9,7 +9,7 @@ from torchvision import transforms
 from PIL import Image
 from tqdm import tqdm
 
-from dataloaders.sequencedataloader import txt_dataloader_styleGAN
+from sequencedataloader import txt_dataloader_styleGAN
 
 import lpips
 import numpy as np
