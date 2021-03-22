@@ -203,7 +203,7 @@ class txt_dataloader_styleGAN(txt_dataloader):
         self.imgs = list(zip(self.images, self.labels))
 
     def __len__(self):
-        return txt_dataloader.__len__(self.images)
+        return len(self.imgs)
 
     def __getitem__(self, idx):
         sample_ = txt_dataloader.__getitem__(self, idx)

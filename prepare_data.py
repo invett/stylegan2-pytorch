@@ -8,6 +8,7 @@ import lmdb
 from tqdm import tqdm
 from torchvision import datasets
 from torchvision.transforms import functional as trans_fn
+import numpy as np
 
 from dataloaders.sequencedataloader import txt_dataloader_styleGAN
 import torchvision.transforms as transforms

@@ -517,7 +517,7 @@ class Generator(nn.Module):
     ):
         if not input_is_latent:
             styles = [self.pixel_norm(s) for s in styles]
-            labels = self.label_embed(labels)
+            labels = self.labels_embed(labels)
             labels = self.pixel_norm(labels)
             styles = [torch.cat([s, labels], dim=1) for s in styles]
             styles = [self.style(s) for s in styles]

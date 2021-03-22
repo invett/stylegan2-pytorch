@@ -24,7 +24,9 @@ except ImportError:
     wandb = None
 
 
-from dataset import MultiResolutionDataset
+from dataset_conditional import MultiResolutionDataset
+from sequencedataloader import txt_dataloader_styleGAN
+
 from distributed import (
     get_rank,
     synchronize,
@@ -361,7 +363,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="StyleGAN2 trainer")
 
-    parser.add_argument("path", type=str, help="path to the lmdb dataset")
+    #parser.add_argument("path", type=str, help="path to the lmdb dataset")
+    parser.add_argument("--path", type=str, action='append', help="path(s) to the image dataset", required=True)
+
     parser.add_argument('--arch', type=str, default='stylegan2', help='model architectures (stylegan2 | swagan)')
     parser.add_argument(
         "--iter", type=int, default=800000, help="total training iterations"
@@ -549,7 +553,8 @@ if __name__ == "__main__":
         ]
     )
 
-    dataset = MultiResolutionDataset(args.path, transform, args.size)
+    # dataset = MultiResolutionDataset(args.path, transform, args.size)
+    dataset = txt_dataloader_styleGAN(args.path, transform=transform)
     loader = data.DataLoader(
         dataset,
         batch_size=args.batch,

@@ -6,6 +6,7 @@ from torch.utils.data import Dataset
 
 import numpy as np
 
+
 class MultiResolutionDataset(Dataset):
     def __init__(self, path, transform, resolution=256):
         self.env = lmdb.open(
@@ -17,7 +18,10 @@ class MultiResolutionDataset(Dataset):
             meminit=False,
         )
 
-        self.labels = np.load(path+"/labels.npy", allow_pickle=True).item()
+        # get the labels, this differs from the original dataset.py ; el problema es que el orden no estoy seguro que
+        # sea el mismo, y si esta mal no vamos de ninguna parte
+        # TODO: delete - self.labels = np.load(path+"/labels.npy", allow_pickle=True).item()
+
         if not self.env:
             raise IOError('Cannot open lmdb dataset', path)
 
@@ -32,12 +36,13 @@ class MultiResolutionDataset(Dataset):
 
     def __getitem__(self, index):
         with self.env.begin(write=False) as txn:
-            label = self.labels[index]
-            key = f'{self.resolution}-{str(index).zfill(5)}-{label}'.encode('utf-8')
+            # label = self.labels[index]
+            # key = f'{self.resolution}-{str(index).zfill(5)}-{label}'.encode('utf-8')
+            key = f'{self.resolution}-{str(index).zfill(5)}'.encode('utf-8')
             img_bytes = txn.get(key)
 
         buffer = BytesIO(img_bytes)
         img = Image.open(buffer)
         img = self.transform(img)
 
-        return img, label
+        return img  # , label
