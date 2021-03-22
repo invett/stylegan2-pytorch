@@ -168,8 +168,12 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         ada_augment = AdaptiveAugment(args.ada_target, args.ada_length, 8, device)
 
     sample_z = torch.randn(args.n_sample, args.latent, device=device)
+
+    # para sacar el mismo numero de muestras por clase, megatrick ..
     sample_labels = torch.tensor([0,1,2,3,4,5,6]).repeat(args.n_sample//args.num_classes)
     sample_labels = torch.nn.functional.one_hot(sample_labels, num_classes=args.num_classes).float().to(device)
+    # pero como va a faltar una clase ...
+    sample_labels = torch.vstack((sample_labels, torch.tensor([0., 0., 0., 0., 0., 0., 1.]).float().to(device)))
 
     for idx in pbar:
         i = idx + args.start_iter
@@ -547,6 +551,7 @@ if __name__ == "__main__":
 
     transform = transforms.Compose(
         [
+            transforms.Resize((256, 256)),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=True),
