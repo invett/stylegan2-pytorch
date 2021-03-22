@@ -49,14 +49,15 @@ def prepare(
     resize_fn = partial(resize_worker, sizes=sizes, resample=resample)
 
     files = sorted(dataset.imgs, key=lambda x: x[0])
+    labels = {i: label for i, (file, label) in enumerate(files)}
+    np.save(env.path()+"/labels", labels)
     files = [(i, file) for i, (file, label) in enumerate(files)]
-
     total = 0
 
     with multiprocessing.Pool(n_worker) as pool:
         for i, imgs in tqdm(pool.imap_unordered(resize_fn, files)):
             for size, img in zip(sizes, imgs):
-                key = f"{size}-{str(i).zfill(5)}".encode("utf-8")
+                key = f"{size}-{str(i).zfill(5)}-{labels[i]}".encode("utf-8")
 
                 with env.begin(write=True) as txn:
                     txn.put(key, img)
