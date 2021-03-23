@@ -14,6 +14,7 @@ from sequencedataloader import txt_dataloader_styleGAN
 import lpips
 import numpy as np
 
+
 def noise_regularize(noises):
     loss = 0
 
@@ -21,11 +22,8 @@ def noise_regularize(noises):
         size = noise.shape[2]
 
         while True:
-            loss = (
-                loss
-                + (noise * torch.roll(noise, shifts=1, dims=3)).mean().pow(2)
-                + (noise * torch.roll(noise, shifts=1, dims=2)).mean().pow(2)
-            )
+            loss = (loss + (noise * torch.roll(noise, shifts=1, dims=3)).mean().pow(2) + (
+                    noise * torch.roll(noise, shifts=1, dims=2)).mean().pow(2))
 
             if size <= 8:
                 break
@@ -60,68 +58,27 @@ def latent_noise(latent, strength):
 
 
 def make_image(tensor):
-    return (
-        tensor.detach()
-        .clamp_(min=-1, max=1)
-        .add(1)
-        .div_(2)
-        .mul(255)
-        .type(torch.uint8)
-        .permute(0, 2, 3, 1)
-        .to("cpu")
-        .numpy()
-    )
+    return (tensor.detach().clamp_(min=-1, max=1).add(1).div_(2).mul(255).type(torch.uint8).permute(0, 2, 3, 1).to(
+        "cpu").numpy())
 
 
 if __name__ == "__main__":
     device = "cuda"
 
-    parser = argparse.ArgumentParser(
-        description="Image projector to the generator latent spaces"
-    )
-    parser.add_argument(
-        "--ckpt", type=str, required=True, help="path to the model checkpoint"
-    )
-    
+    parser = argparse.ArgumentParser(description="Image projector to the generator latent spaces")
+    parser.add_argument("--ckpt", type=str, required=True, help="path to the model checkpoint")
+
     parser.add_argument('--arch', type=str, default='stylegan2', help='model architectures (stylegan2 | swagan)')
-    parser.add_argument(
-        "--size", type=int, default=256, help="output image sizes of the generator"
-    )
-    parser.add_argument(
-        "--lr_rampup",
-        type=float,
-        default=0.05,
-        help="duration of the learning rate warmup",
-    )
-    parser.add_argument(
-        "--lr_rampdown",
-        type=float,
-        default=0.25,
-        help="duration of the learning rate decay",
-    )
+    parser.add_argument("--size", type=int, default=256, help="output image sizes of the generator")
+    parser.add_argument("--lr_rampup", type=float, default=0.05, help="duration of the learning rate warmup", )
+    parser.add_argument("--lr_rampdown", type=float, default=0.25, help="duration of the learning rate decay", )
     parser.add_argument("--lr", type=float, default=0.1, help="learning rate")
-    parser.add_argument(
-        "--noise", type=float, default=0.05, help="strength of the noise level"
-    )
-    parser.add_argument(
-        "--noise_ramp",
-        type=float,
-        default=0.75,
-        help="duration of the noise level decay",
-    )
+    parser.add_argument("--noise", type=float, default=0.05, help="strength of the noise level")
+    parser.add_argument("--noise_ramp", type=float, default=0.75, help="duration of the noise level decay", )
     parser.add_argument("--step", type=int, default=1000, help="optimize iterations")
-    parser.add_argument(
-        "--noise_regularize",
-        type=float,
-        default=1e5,
-        help="weight of the noise regularization",
-    )
+    parser.add_argument("--noise_regularize", type=float, default=1e5, help="weight of the noise regularization", )
     parser.add_argument("--mse", type=float, default=0, help="weight of the mse loss")
-    parser.add_argument(
-        "--w_plus",
-        action="store_true",
-        help="allow to use distinct latent codes to each layers",
-    )
+    parser.add_argument("--w_plus", action="store_true", help="allow to use distinct latent codes to each layers", )
     # parser.add_argument(
     #     "files", metavar="FILES", nargs="+", help="path to image files to be projected"
     # )
@@ -134,20 +91,14 @@ if __name__ == "__main__":
 
     resize = min(args.size, 256)
 
-    transform = transforms.Compose(
-        [
-            transforms.Resize(resize),
-            transforms.CenterCrop(resize),
-            transforms.ToTensor(),
-            transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
-        ]
-    )
+    transform = transforms.Compose([transforms.Resize(resize), transforms.CenterCrop(resize), transforms.ToTensor(),
+                                    transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]), ])
 
     imgs = []
 
     # txtdataloader
     train_path = args.path
-    dataset_ = txt_dataloader_styleGAN(train_path, decimateStep=1)
+    dataset_ = txt_dataloader_styleGAN(train_path, decimateStep=10)
     args.files = dataset_.images[:]
 
     for imgfile in args.files:
@@ -161,7 +112,7 @@ if __name__ == "__main__":
 
     elif args.arch == 'swagan':
         from swagan import Generator
-        
+
     g_ema = Generator(args.size, 512, 8)
     g_ema.load_state_dict(torch.load(args.ckpt)["g_ema"], strict=False)
     g_ema.eval()
@@ -174,9 +125,7 @@ if __name__ == "__main__":
         latent_mean = latent_out.mean(0)
         latent_std = ((latent_out - latent_mean).pow(2).sum() / n_mean_latent) ** 0.5
 
-    percept = lpips.PerceptualLoss(
-        model="net-lin", net="vgg", use_gpu=device.startswith("cuda")
-    )
+    percept = lpips.PerceptualLoss(model="net-lin", net="vgg", use_gpu=device.startswith("cuda"))
 
     noises_single = g_ema.make_noise()
     noises = []
@@ -206,15 +155,14 @@ if __name__ == "__main__":
         latent_n = latent_noise(latent_in, noise_strength.item())
 
         img_gen, _ = g_ema([latent_n], input_is_latent=True, noise=noises)
+        # img_gen, w_space = g_ema([latent_n], input_is_latent=True, noise=noises, return_latents=True)
 
         batch, channel, height, width = img_gen.shape
 
         if height > 256:
             factor = height // 256
 
-            img_gen = img_gen.reshape(
-                batch, channel, height // factor, factor, width // factor, factor
-            )
+            img_gen = img_gen.reshape(batch, channel, height // factor, factor, width // factor, factor)
             img_gen = img_gen.mean([3, 5])
 
         p_loss = percept(img_gen, imgs).sum()
@@ -232,14 +180,12 @@ if __name__ == "__main__":
         if (i + 1) % 100 == 0:
             latent_path.append(latent_in.detach().clone())
 
-        pbar.set_description(
-            (
-                f"perceptual: {p_loss.item():.4f}; noise regularize: {n_loss.item():.4f};"
-                f" mse: {mse_loss.item():.4f}; lr: {lr:.4f}"
-            )
-        )
+        pbar.set_description((f"perceptual: {p_loss.item():.4f}; noise regularize: {n_loss.item():.4f};"
+                              f" mse: {mse_loss.item():.4f}; lr: {lr:.4f}"))
 
-    img_gen, _ = g_ema([latent_path[-1]], input_is_latent=True, noise=noises)
+    # img_gen, _ = g_ema([latent_path[-1]], input_is_latent=True, noise=noises)
+    img_gen, w_space = g_ema([latent_path[-1]], input_is_latent=True, noise=noises, return_latents=True)
+    # img_gen, w_space = g_ema([latent_n], input_is_latent=True, noise=noises, return_latents=True)
 
     filename = os.path.splitext(os.path.basename(args.files[0]))[0] + ".pt"
 
@@ -249,13 +195,10 @@ if __name__ == "__main__":
     for i, input_name in enumerate(args.files):
         noise_single = []
         for noise in noises:
-            noise_single.append(noise[i : i + 1])
+            noise_single.append(noise[i: i + 1])
 
-        result_file[input_name] = {
-            "img": img_gen[i],
-            "latent": latent_in[i],
-            "noise": noise_single,
-        }
+        result_file[input_name] = {"img": img_gen[i], "latent": latent_in[i], "noise": noise_single,
+                                   "w_space": w_space[i]}
 
         img_name = os.path.splitext(os.path.basename(input_name))[0] + "-project.png"
         pil_img = Image.fromarray(img_ar[i])
@@ -263,10 +206,14 @@ if __name__ == "__main__":
 
     torch.save(result_file, filename)
 
-    for i, a in enumerate(args.path):
+    for i, input_name in enumerate(args.files):
         filename_txt = os.path.splitext(os.path.split(a)[1])[0] + '_embeddings.txt'
+        filename_w = os.path.splitext(os.path.split(a)[1])[0] + '_w.txt'
         filename_npy = os.path.splitext(os.path.split(a)[1])[0] + '_embeddings.npy'
-        with open(filename_txt, 'wb') as f:
-            np.savetxt(f, latent_in.cpu().detach().numpy())
-        with open(filename_npy, 'wb') as f:
-            np.save(f, latent_in.cpu().detach().numpy())
+
+        with open(filename_w, 'ab') as f:
+            np.savetxt(f, np.array([w_space[i][0].cpu().detach().numpy()]))
+        with open(filename_txt, 'ab') as f:
+            np.savetxt(f, np.array(latent_in[i].cpu().detach().numpy()))
+        with open(filename_npy, 'ab') as f:
+            np.save(f, latent_in[i].cpu().detach().numpy())
