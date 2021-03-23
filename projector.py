@@ -207,9 +207,9 @@ if __name__ == "__main__":
     torch.save(result_file, filename)
 
     for i, input_name in enumerate(args.files):
-        filename_txt = os.path.splitext(os.path.split(a)[1])[0] + '_embeddings.txt'
-        filename_w = os.path.splitext(os.path.split(a)[1])[0] + '_w.txt'
-        filename_npy = os.path.splitext(os.path.split(a)[1])[0] + '_embeddings.npy'
+        filename_txt = os.path.splitext(os.path.split(input_name)[1])[0] + '_embeddings.txt'
+        filename_w = os.path.splitext(os.path.split(input_name)[1])[0] + '_w.txt'
+        filename_npy = os.path.splitext(os.path.split(input_name)[1])[0] + '_embeddings.npy'
 
         with open(filename_w, 'ab') as f:
             np.savetxt(f, np.array([w_space[i][0].cpu().detach().numpy()]))
