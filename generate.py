@@ -10,11 +10,18 @@ def generate(args, g_ema, device, mean_latent):
     with torch.no_grad():
         g_ema.eval()
         for i in tqdm(range(args.pics)):
+            labels = torch.tensor(args.class).repeat(args.sample)
+            labels = torch.nn.functional.one_hot(labels, num_classes=args.num_classes).float().to(device)
             sample_z = torch.randn(args.sample, args.latent, device=device)
-
-            sample, _ = g_ema(
-                [sample_z], truncation=args.truncation, truncation_latent=mean_latent
-            )
+            
+            if args.conditional:
+                sample, _ = g_ema(
+                    [sample_z], labels, truncation=args.truncation, truncation_latent=mean_latent
+                )
+            else:
+                sample, _ = g_ema(
+                    [sample_z], truncation=args.truncation, truncation_latent=mean_latent
+                )
 
             utils.save_image(
                 sample,
@@ -67,8 +74,28 @@ if __name__ == "__main__":
         default="stylegan2-001",
         help="file name for the generated images <name>-<num_image>.png",
     )
-    parser.add_argument('--arch', type=str, default='stylegan2', help='model architectures (stylegan2 | swagan)')
-    
+    parser.add_argument(
+        '--arch', 
+        type=str, 
+        default='stylegan2', 
+        help='model architectures (stylegan2 | swagan)')
+    parser.add_argument(
+        "--conditional", 
+        action="store_true", 
+        help="conditional generation",
+    )
+    parser.add_argument(
+        "--num_classes",
+        type=int,
+        default=7,
+    )
+    parser.add_argument(
+        "--class",
+        type=int,
+        default=1,
+        help='class to generate',
+    )
+
 
     args = parser.parse_args()
 
@@ -77,15 +104,23 @@ if __name__ == "__main__":
     
 
     if args.arch == 'stylegan2':
-        from model import Generator
+        if args.conditional:
+            from model_conditional import Generator
+        else:
+            from model import Generator
 
     elif args.arch == 'swagan':
         from swagan import Generator
         
+    if args.conditional:
+        g_ema = Generator(
+            args.size, args.latent, args.n_mlp, num_classes=args.num_classes, channel_multiplier=args.channel_multiplier
+        ).to(device)   
+     else:
+        g_ema = Generator(
+            args.size, args.latent, args.n_mlp, channel_multiplier=args.channel_multiplier
+        ).to(device)
         
-    g_ema = Generator(
-        args.size, args.latent, args.n_mlp, channel_multiplier=args.channel_multiplier
-    ).to(device)
     checkpoint = torch.load(args.ckpt)
 
     g_ema.load_state_dict(checkpoint["g_ema"])
