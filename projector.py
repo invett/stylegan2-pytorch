@@ -214,6 +214,6 @@ if __name__ == "__main__":
         with open(filename_w, 'ab') as f:
             np.savetxt(f, np.array([w_space[i][0].cpu().detach().numpy()]))
         with open(filename_txt, 'ab') as f:
-            np.savetxt(f, np.array(latent_in[i].cpu().detach().numpy()))
+            np.savetxt(f, latent_in[i].cpu().detach().numpy())
         with open(filename_npy, 'ab') as f:
             np.save(f, latent_in[i].cpu().detach().numpy())
