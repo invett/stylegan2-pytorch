@@ -10,7 +10,7 @@ def generate(args, g_ema, device, mean_latent):
     with torch.no_grad():
         g_ema.eval()
         for i in tqdm(range(args.pics)):
-            labels = torch.tensor(args.class).repeat(args.sample)
+            labels = torch.tensor(args.label).repeat(args.sample)
             labels = torch.nn.functional.one_hot(labels, num_classes=args.num_classes).float().to(device)
             sample_z = torch.randn(args.sample, args.latent, device=device)
             
@@ -90,7 +90,7 @@ if __name__ == "__main__":
         default=7,
     )
     parser.add_argument(
-        "--class",
+        "--label",
         type=int,
         default=1,
         help='class to generate',
@@ -115,8 +115,8 @@ if __name__ == "__main__":
     if args.conditional:
         g_ema = Generator(
             args.size, args.latent, args.n_mlp, num_classes=args.num_classes, channel_multiplier=args.channel_multiplier
-        ).to(device)   
-     else:
+        ).to(device)
+    else:
         g_ema = Generator(
             args.size, args.latent, args.n_mlp, channel_multiplier=args.channel_multiplier
         ).to(device)
