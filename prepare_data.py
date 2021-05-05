@@ -10,8 +10,22 @@ from torchvision import datasets
 from torchvision.transforms import functional as trans_fn
 import numpy as np
 
+from torch.utils import data
+from torchvision import transforms, utils
 from dataloaders.sequencedataloader import txt_dataloader_styleGAN
+from collections import Counter
 import torchvision.transforms as transforms
+
+
+def data_sampler(dataset, shuffle, distributed):
+    if distributed:
+        return data.distributed.DistributedSampler(dataset, shuffle=shuffle)
+
+    if shuffle:
+        return data.RandomSampler(dataset)
+
+    else:
+        return data.SequentialSampler(dataset)
 
 
 def resize_and_convert(img, size, resample, quality=100):
@@ -119,6 +133,23 @@ if __name__ == "__main__":
     train_path = args.path
     dataset_ = txt_dataloader_styleGAN(train_path, decimateStep=args.decimate)
     imgset = dataset_
+
+    ###############################################################  to check if everything is good
+    if 1:
+        loader = data.DataLoader(
+            dataset_,
+            batch_size=1,
+            sampler=data_sampler(dataset_, shuffle=True, distributed=0),
+            drop_last=True,
+        )
+        #check labels
+        lab = []
+        for i in range(len(loader.dataset.imgs)):
+            lab.append(loader.dataset.__getitem__(i)[1])
+        a = dict(Counter(lab))
+        print('Double check. Should correspond to the above.')
+        print(a)
+    ###############################################################  to check if everything is good
 
     # default old/stylegan2
     # imgset = datasets.ImageFolder(args.path)

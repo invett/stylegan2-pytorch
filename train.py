@@ -25,6 +25,8 @@ except ImportError:
 
 
 from dataset import MultiResolutionDataset
+from sequencedataloader import txt_dataloader_styleGAN
+
 from distributed import (
     get_rank,
     synchronize,
@@ -528,13 +530,15 @@ if __name__ == "__main__":
 
     transform = transforms.Compose(
         [
-            transforms.RandomHorizontalFlip(),
+            transforms.Resize((256, 256)),
+            # please, no: transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=True),
         ]
     )
 
-    dataset = MultiResolutionDataset(args.path, transform, args.size)
+    # dataset = MultiResolutionDataset(args.path, transform, args.size)
+    dataset = txt_dataloader_styleGAN(args.path, transform=transform)
     loader = data.DataLoader(
         dataset,
         batch_size=args.batch,
