@@ -10,8 +10,22 @@ from torchvision import datasets
 from torchvision.transforms import functional as trans_fn
 import numpy as np
 
+from torch.utils import data
+from torchvision import transforms, utils
 from dataloaders.sequencedataloader import txt_dataloader_styleGAN
+from collections import Counter
 import torchvision.transforms as transforms
+
+
+def data_sampler(dataset, shuffle, distributed):
+    if distributed:
+        return data.distributed.DistributedSampler(dataset, shuffle=shuffle)
+
+    if shuffle:
+        return data.RandomSampler(dataset)
+
+    else:
+        return data.SequentialSampler(dataset)
 
 
 def resize_and_convert(img, size, resample, quality=100):
@@ -97,8 +111,10 @@ if __name__ == "__main__":
     #                     choices=['rgb', 'warping', 'original-stylegan2'])
 
     parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
-    parser.add_argument('--decimate', type=int, default=1, help='How much of the points will remain after '
-                                                                'decimation')
+
+    parser.add_argument('--decimate', type=int, default=1, help='select decimation modality for stylegan dataloader')
+    parser.add_argument('--decimateAlcala', type=int, default=30, help='decimate step for alcala datasets')
+    parser.add_argument('--decimateKitti', type=int, default=10, help='decimate step for kitti datasets')
 
     args = parser.parse_args()
 
@@ -117,13 +133,33 @@ if __name__ == "__main__":
     # warping   train_path = '/home/ballardini/DualBiSeNet/alcala-26.01.2021_selected_warped/prefix_all.txt'
     # rgb       train_path = '/home/ballardini/DualBiSeNet/alcala-26.01.2021_selected/prefix_all.txt'
     train_path = args.path
-    dataset_ = txt_dataloader_styleGAN(train_path, decimateStep=args.decimate)
+    dataset_ = txt_dataloader_styleGAN(train_path, decimateStep=args.decimate, decimateAlcala=args.decimateAlcala,
+                                       decimateKitti=args.decimateKitti)
     imgset = dataset_
+
+    ###############################################################  to check if everything is good
+    if 1:
+        loader = data.DataLoader(
+            dataset_,
+            batch_size=1,
+            sampler=data_sampler(dataset_, shuffle=True, distributed=0),
+            drop_last=True,
+        )
+        #check labels
+        lab = []
+        for i in range(len(loader.dataset.imgs)):
+            lab.append(loader.dataset.__getitem__(i)[1])
+        a = dict(Counter(lab))
+        print('Double check. Should correspond to the above.')
+        print(a)
+    ###############################################################  to check if everything is good
 
     # default old/stylegan2
     # imgset = datasets.ImageFolder(args.path)
 
     print('Dataset will be written in:', str(args.out))
+
+    exit(1)
 
     with lmdb.open(args.out, map_size=1024 ** 4, readahead=False) as env:
         prepare(env, imgset, args.n_worker, sizes=sizes, resample=resample)
