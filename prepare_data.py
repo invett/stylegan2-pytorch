@@ -111,8 +111,8 @@ if __name__ == "__main__":
     #                     choices=['rgb', 'warping', 'original-stylegan2'])
 
     parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
-    parser.add_argument('--decimate', type=int, default=1, help='How much of the points will remain after '
-                                                                'decimation')
+
+    parser.add_argument('--decimate', type=int, default=1, help='select decimation modality for stylegan dataloader')
     parser.add_argument('--decimateAlcala', type=int, default=30, help='decimate step for alcala datasets')
     parser.add_argument('--decimateKitti', type=int, default=10, help='decimate step for kitti datasets')
 

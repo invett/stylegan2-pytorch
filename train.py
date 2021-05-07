@@ -447,6 +447,10 @@ if __name__ == "__main__":
         help="probability update interval of the adaptive augmentation",
     )
 
+    parser.add_argument('--decimate', type=int, default=1, help='select decimation modality for stylegan dataloader')
+    parser.add_argument('--decimateAlcala', type=int, default=30, help='decimate step for alcala datasets')
+    parser.add_argument('--decimateKitti', type=int, default=10, help='decimate step for kitti datasets')
+
     args = parser.parse_args()
 
     n_gpu = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
@@ -538,7 +542,8 @@ if __name__ == "__main__":
     )
 
     # dataset = MultiResolutionDataset(args.path, transform, args.size)
-    dataset = txt_dataloader_styleGAN(args.path, transform=transform)
+    dataset = txt_dataloader_styleGAN(args.path, transform=transform, decimateStep=args.decimate,
+                                      decimateAlcala=args.decimateAlcala, decimateKitti=args.decimateKitti)
     loader = data.DataLoader(
         dataset,
         batch_size=args.batch,
