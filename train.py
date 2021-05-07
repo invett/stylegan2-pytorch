@@ -16,6 +16,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 from miscellaneous.utils import send_telegram_picture, send_telegram_message
 from torchvision.utils import make_grid
+from collections import Counter
 
 try:
     import wandb
@@ -353,7 +354,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="StyleGAN2 trainer")
 
-    parser.add_argument("path", type=str, help="path to the lmdb dataset")
+    #parser.add_argument("--path", type=str, help="path to the lmdb dataset")
+    parser.add_argument("--path", type=str, action='append', help="path(s) to the image dataset", required=True)
+
     parser.add_argument('--arch', type=str, default='stylegan2', help='model architectures (stylegan2 | swagan)')
     parser.add_argument(
         "--iter", type=int, default=800000, help="total training iterations"
@@ -543,13 +546,24 @@ if __name__ == "__main__":
 
     # dataset = MultiResolutionDataset(args.path, transform, args.size)
     dataset = txt_dataloader_styleGAN(args.path, transform=transform, decimateStep=args.decimate,
-                                      decimateAlcala=args.decimateAlcala, decimateKitti=args.decimateKitti)
+                                      decimateAlcala=args.decimateAlcala, decimateKitti=args.decimateKitti,
+                                      conditional=False)
     loader = data.DataLoader(
         dataset,
         batch_size=args.batch,
         sampler=data_sampler(dataset, shuffle=True, distributed=args.distributed),
         drop_last=True,
     )
+
+    # check labels
+    # lab = []
+    # for i in range(len(loader.dataset.imgs)):
+    #     lab.append(loader.dataset.__getitem__(i)[1])
+    # a = dict(Counter(lab))
+    # print('Double check. Should correspond to the above.')
+    # print(a)
+
+    #exit(1)
 
     if get_rank() == 0 and wandb is not None and args.wandb:
         wandb.init(project="stylegan 2")
