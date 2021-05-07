@@ -113,6 +113,8 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
     parser.add_argument('--decimate', type=int, default=1, help='How much of the points will remain after '
                                                                 'decimation')
+    parser.add_argument('--decimateAlcala', type=int, default=30, help='decimate step for alcala datasets')
+    parser.add_argument('--decimateKitti', type=int, default=10, help='decimate step for kitti datasets')
 
     args = parser.parse_args()
 
@@ -131,7 +133,8 @@ if __name__ == "__main__":
     # warping   train_path = '/home/ballardini/DualBiSeNet/alcala-26.01.2021_selected_warped/prefix_all.txt'
     # rgb       train_path = '/home/ballardini/DualBiSeNet/alcala-26.01.2021_selected/prefix_all.txt'
     train_path = args.path
-    dataset_ = txt_dataloader_styleGAN(train_path, decimateStep=args.decimate)
+    dataset_ = txt_dataloader_styleGAN(train_path, decimateStep=args.decimate, decimateAlcala=args.decimateAlcala,
+                                       decimateKitti=args.decimateKitti)
     imgset = dataset_
 
     ###############################################################  to check if everything is good
@@ -155,6 +158,8 @@ if __name__ == "__main__":
     # imgset = datasets.ImageFolder(args.path)
 
     print('Dataset will be written in:', str(args.out))
+
+    exit(1)
 
     with lmdb.open(args.out, map_size=1024 ** 4, readahead=False) as env:
         prepare(env, imgset, args.n_worker, sizes=sizes, resample=resample)
