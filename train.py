@@ -69,11 +69,15 @@ def sample_data(loader):
             yield batch
 
 
-def d_logistic_loss(real_pred, fake_pred):
+def d_logistic_loss(real_pred, fake_pred, centroid_distances=None):
     real_loss = F.softplus(-real_pred)
     fake_loss = F.softplus(fake_pred)
 
-    return real_loss.mean() + fake_loss.mean()
+    if centroid_distances:
+        fake_distance_loss = F.softplus(centroid_distances)
+        return real_loss.mean() + fake_loss.mean() + fake_distance_loss.mean()
+    else:
+        return real_loss.mean() + fake_loss.mean()
 
 
 def d_r1_loss(real_pred, real_img):
@@ -86,11 +90,13 @@ def d_r1_loss(real_pred, real_img):
     return grad_penalty
 
 
-def g_nonsaturating_loss(fake_pred):
-    loss = F.softplus(-fake_pred).mean()
-
-    return loss
-
+def g_nonsaturating_loss(fake_pred, centroid_distances=None):
+    if centroid_distances:
+        loss = F.softplus(-fake_pred).mean()
+        fake_distance_loss = F.softplus(-centroid_distances).mean()
+        return loss + fake_distance_loss
+    else:
+        return F.softplus(-fake_pred).mean()
 
 def g_path_regularize(fake_img, latents, mean_path_length, decay=0.01):
     noise = torch.randn_like(fake_img) / math.sqrt(
@@ -131,7 +137,7 @@ def set_grad_none(model, targets):
             p.grad = None
 
 
-def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, device):
+def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, device, intesection_classificator, centroids):
     loader = sample_data(loader)
 
     pbar = range(args.iter)
@@ -190,9 +196,13 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         else:
             real_img_aug = real_img
 
+        # ACA PONER LO DE LA RED DE CLASIFICACION CRUCES
+        batch_embeddings = intesection_classificator(fake_img)
+        batch_distances = get_distances_embb(batch_embeddings, centroids)
+
         fake_pred = discriminator(fake_img)
         real_pred = discriminator(real_img_aug)
-        d_loss = d_logistic_loss(real_pred, fake_pred)
+        d_loss = d_logistic_loss(real_pred, fake_pred, centroid_distances)
 
         loss_dict["d"] = d_loss
         loss_dict["real_score"] = real_pred.mean()
@@ -237,7 +247,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
             fake_img, _ = augment(fake_img, ada_aug_p)
 
         fake_pred = discriminator(fake_img)
-        g_loss = g_nonsaturating_loss(fake_pred)
+        g_loss = g_nonsaturating_loss(fake_pred, centroid_distances)
 
         loss_dict["g"] = g_loss
 
@@ -354,101 +364,40 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="StyleGAN2 trainer")
 
-    #parser.add_argument("--path", type=str, help="path to the lmdb dataset")
+    parser.add_argument("--centroids", type=str, help="centroids for extra loss term", required=False)
+    parser.add_argument('--load_path', type=str, help='Insert path to the testing pth (for network testing)')
+
+    # parser.add_argument("--path", type=str, help="path to the lmdb dataset")
     parser.add_argument("--path", type=str, action='append', help="path(s) to the image dataset", required=True)
 
     parser.add_argument('--arch', type=str, default='stylegan2', help='model architectures (stylegan2 | swagan)')
-    parser.add_argument(
-        "--iter", type=int, default=800000, help="total training iterations"
-    )
-    parser.add_argument(
-        "--batch", type=int, default=16, help="batch sizes for each gpus"
-    )
-    parser.add_argument(
-        "--n_sample",
-        type=int,
-        default=64,
-        help="number of the samples generated during training",
-    )
-    parser.add_argument(
-        "--size", type=int, default=256, help="image sizes for the model"
-    )
-    parser.add_argument(
-        "--r1", type=float, default=10, help="weight of the r1 regularization"
-    )
-    parser.add_argument(
-        "--path_regularize",
-        type=float,
-        default=2,
-        help="weight of the path length regularization",
-    )
-    parser.add_argument(
-        "--path_batch_shrink",
-        type=int,
-        default=2,
-        help="batch size reducing factor for the path length regularization (reduce memory consumption)",
-    )
-    parser.add_argument(
-        "--d_reg_every",
-        type=int,
-        default=16,
-        help="interval of the applying r1 regularization",
-    )
-    parser.add_argument(
-        "--g_reg_every",
-        type=int,
-        default=4,
-        help="interval of the applying path length regularization",
-    )
-    parser.add_argument(
-        "--mixing", type=float, default=0.9, help="probability of latent code mixing"
-    )
-    parser.add_argument(
-        "--ckpt",
-        type=str,
-        default=None,
-        help="path to the checkpoints to resume training",
-    )
+    parser.add_argument("--iter", type=int, default=800000, help="total training iterations")
+    parser.add_argument("--batch", type=int, default=16, help="batch sizes for each gpus")
+    parser.add_argument("--n_sample", type=int, default=64, help="number of the samples generated during training", )
+    parser.add_argument("--size", type=int, default=256, help="image sizes for the model")
+    parser.add_argument("--r1", type=float, default=10, help="weight of the r1 regularization")
+    parser.add_argument("--path_regularize", type=float, default=2, help="weight of the path length regularization", )
+    parser.add_argument("--path_batch_shrink", type=int, default=2,
+                        help="batch size reducing factor for the path length regularization (reduce memory consumption)", )
+    parser.add_argument("--d_reg_every", type=int, default=16, help="interval of the applying r1 regularization", )
+    parser.add_argument("--g_reg_every", type=int, default=4,
+                        help="interval of the applying path length regularization", )
+    parser.add_argument("--mixing", type=float, default=0.9, help="probability of latent code mixing")
+    parser.add_argument("--ckpt", type=str, default=None, help="path to the checkpoints to resume training", )
     parser.add_argument("--lr", type=float, default=0.002, help="learning rate")
-    parser.add_argument(
-        "--channel_multiplier",
-        type=int,
-        default=2,
-        help="channel multiplier factor for the model. config-f = 2, else = 1",
-    )
-    parser.add_argument(
-        "--wandb", action="store_true", help="use weights and biases logging"
-    )
-    parser.add_argument(
-        "--local_rank", type=int, default=0, help="local rank for distributed training"
-    )
-    parser.add_argument(
-        "--augment", action="store_true", help="apply non leaking augmentation"
-    )
-    parser.add_argument(
-        "--augment_p",
-        type=float,
-        default=0,
-        help="probability of applying augmentation. 0 = use adaptive augmentation",
-    )
-    parser.add_argument(
-        "--ada_target",
-        type=float,
-        default=0.6,
-        help="target augmentation probability for adaptive augmentation",
-    )
-    parser.add_argument(
-        "--ada_length",
-        type=int,
-        default=500 * 1000,
-        help="target duraing to reach augmentation probability for adaptive augmentation",
-    )
-    parser.add_argument(
-        "--ada_every",
-        type=int,
-        default=256,
-        help="probability update interval of the adaptive augmentation",
-    )
+    parser.add_argument("--channel_multiplier", type=int, default=2,
+                        help="channel multiplier factor for the model. config-f = 2, else = 1", )
+    parser.add_argument("--wandb", action="store_true", help="use weights and biases logging")
+    parser.add_argument("--local_rank", type=int, default=0, help="local rank for distributed training")
+    parser.add_argument("--augment", action="store_true", help="apply non leaking augmentation")
+    parser.add_argument("--augment_p", type=float, default=0,
+                        help="probability of applying augmentation. 0 = use adaptive augmentation", )
+    parser.add_argument("--ada_target", type=float, default=0.6,
+                        help="target augmentation probability for adaptive augmentation", )
+    parser.add_argument("--ada_length", type=int, default=500 * 1000,
+                        help="target duraing to reach augmentation probability for adaptive augmentation", )
+    parser.add_argument("--ada_every", type=int, default=256,
+                        help="probability update interval of the adaptive augmentation", )
 
     parser.add_argument('--decimate', type=int, default=1, help='select decimation modality for stylegan dataloader')
     parser.add_argument('--decimateAlcala', type=int, default=30, help='decimate step for alcala datasets')
@@ -475,15 +424,9 @@ if __name__ == "__main__":
     elif args.arch == 'swagan':
         from swagan import Generator, Discriminator
 
-    generator = Generator(
-        args.size, args.latent, args.n_mlp, channel_multiplier=args.channel_multiplier
-    ).to(device)
-    discriminator = Discriminator(
-        args.size, channel_multiplier=args.channel_multiplier
-    ).to(device)
-    g_ema = Generator(
-        args.size, args.latent, args.n_mlp, channel_multiplier=args.channel_multiplier
-    ).to(device)
+    generator = Generator(args.size, args.latent, args.n_mlp, channel_multiplier=args.channel_multiplier).to(device)
+    discriminator = Discriminator(args.size, channel_multiplier=args.channel_multiplier).to(device)
+    g_ema = Generator(args.size, args.latent, args.n_mlp, channel_multiplier=args.channel_multiplier).to(device)
     g_ema.eval()
     accumulate(g_ema, generator, 0)
 
@@ -535,14 +478,31 @@ if __name__ == "__main__":
             broadcast_buffers=False,
         )
 
-    transform = transforms.Compose(
-        [
-            transforms.Resize((256, 256)),
-            # please, no: transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=True),
-        ]
-    )
+    transform = transforms.Compose([transforms.Resize((256, 256)),  # please, no: transforms.RandomHorizontalFlip(),
+                                    transforms.ToTensor(),
+                                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=True), ])
+
+    # codigo para crear la red de intersections y cargar centroides
+    centroids = None
+    intesection_classificator = None
+
+    if args.centroids:
+
+        # RED
+        intesection_classificator = VGG(pretrained=False, embeddings=True, num_classes=7, version='vgg13', logits=False)
+        loadpath = args.load_path
+        if os.path.isfile(loadpath):
+            print("=> Loading checkpoint '{}' ... ".format(loadpath))
+            checkpoint = torch.load(loadpath, map_location='cpu')
+            intesection_classificator.load_state_dict(checkpoint['model_state_dict'])
+            print("=> OK! Checkpoint loaded! '{}'".format(loadpath))
+        else:
+            print("=> no checkpoint found at '{}'".format(loadpath))
+
+        # LOAD CENTROIDS
+
+        centroids = 0
+
 
     # dataset = MultiResolutionDataset(args.path, transform, args.size)
     dataset = txt_dataloader_styleGAN(args.path, transform=transform, decimateStep=args.decimate,
@@ -568,4 +528,4 @@ if __name__ == "__main__":
     if get_rank() == 0 and wandb is not None and args.wandb:
         wandb.init(project="stylegan 2")
 
-    train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, device)
+    train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, device, intesection_classificator, centroids)
