@@ -14,9 +14,12 @@ from tqdm import tqdm
 
 from PIL import Image
 import matplotlib.pyplot as plt
-from miscellaneous.utils import send_telegram_picture, send_telegram_message
+from miscellaneous.utils import get_distances_embb, send_telegram_picture, send_telegram_message
 from torchvision.utils import make_grid
 from collections import Counter
+
+from model.models import VGG
+
 
 try:
     import wandb
@@ -24,20 +27,12 @@ try:
 except ImportError:
     wandb = None
 
-
 from dataset import MultiResolutionDataset
 from sequencedataloader import txt_dataloader_styleGAN
 
-from distributed import (
-    get_rank,
-    synchronize,
-    reduce_loss_dict,
-    reduce_sum,
-    get_world_size,
-)
+from distributed import (get_rank, synchronize, reduce_loss_dict, reduce_sum, get_world_size, )
 from op import conv2d_gradfix
 from non_leaking import augment, AdaptiveAugment
-
 
 def data_sampler(dataset, shuffle, distributed):
     if distributed:
@@ -82,9 +77,7 @@ def d_logistic_loss(real_pred, fake_pred, centroid_distances=None):
 
 def d_r1_loss(real_pred, real_img):
     with conv2d_gradfix.no_weight_gradients():
-        grad_real, = autograd.grad(
-            outputs=real_pred.sum(), inputs=real_img, create_graph=True
-        )
+        grad_real, = autograd.grad(outputs=real_pred.sum(), inputs=real_img, create_graph=True)
     grad_penalty = grad_real.pow(2).reshape(grad_real.shape[0], -1).sum(1).mean()
 
     return grad_penalty
@@ -99,12 +92,8 @@ def g_nonsaturating_loss(fake_pred, centroid_distances=None):
         return F.softplus(-fake_pred).mean()
 
 def g_path_regularize(fake_img, latents, mean_path_length, decay=0.01):
-    noise = torch.randn_like(fake_img) / math.sqrt(
-        fake_img.shape[2] * fake_img.shape[3]
-    )
-    grad, = autograd.grad(
-        outputs=(fake_img * noise).sum(), inputs=latents, create_graph=True
-    )
+    noise = torch.randn_like(fake_img) / math.sqrt(fake_img.shape[2] * fake_img.shape[3])
+    grad, = autograd.grad(outputs=(fake_img * noise).sum(), inputs=latents, create_graph=True)
     path_lengths = torch.sqrt(grad.pow(2).sum(2).mean(1))
 
     path_mean = mean_path_length + decay * (path_lengths.mean() - mean_path_length)
@@ -262,9 +251,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
             noise = mixing_noise(path_batch_size, args.latent, args.mixing, device)
             fake_img, latents = generator(noise, return_latents=True)
 
-            path_loss, mean_path_length, path_lengths = g_path_regularize(
-                fake_img, latents, mean_path_length
-            )
+            path_loss, mean_path_length, path_lengths = g_path_regularize(fake_img, latents, mean_path_length)
 
             generator.zero_grad()
             weighted_path_loss = args.path_regularize * args.g_reg_every * path_loss
@@ -276,9 +263,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
 
             g_optim.step()
 
-            mean_path_length_avg = (
-                reduce_sum(mean_path_length).item() / get_world_size()
-            )
+            mean_path_length_avg = (reduce_sum(mean_path_length).item() / get_world_size())
 
         loss_dict["path"] = path_loss
         loss_dict["path_length"] = path_lengths.mean()
@@ -296,44 +281,27 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         path_length_val = loss_reduced["path_length"].mean().item()
 
         if get_rank() == 0:
-            pbar.set_description(
-                (
-                    f"d: {d_loss_val:.4f}; g: {g_loss_val:.4f}; r1: {r1_val:.4f}; "
-                    f"path: {path_loss_val:.4f}; mean path: {mean_path_length_avg:.4f}; "
-                    f"augment: {ada_aug_p:.4f}"
-                )
-            )
+            pbar.set_description((f"d: {d_loss_val:.4f}; g: {g_loss_val:.4f}; r1: {r1_val:.4f}; "
+                                  f"path: {path_loss_val:.4f}; mean path: {mean_path_length_avg:.4f}; "
+                                  f"augment: {ada_aug_p:.4f}"))
 
             if wandb and args.wandb:
-                wandb.log(
-                    {
-                        "Generator": g_loss_val,
-                        "Discriminator": d_loss_val,
-                        "Augment": ada_aug_p,
-                        "Rt": r_t_stat,
-                        "R1": r1_val,
-                        "Path Length Regularization": path_loss_val,
-                        "Mean Path Length": mean_path_length,
-                        "Real Score": real_score_val,
-                        "Fake Score": fake_score_val,
-                        "Path Length": path_length_val,
-                    }
-                )
+                wandb.log({"Generator": g_loss_val, "Discriminator": d_loss_val, "Augment": ada_aug_p, "Rt": r_t_stat,
+                           "R1": r1_val, "Path Length Regularization": path_loss_val,
+                           "Mean Path Length": mean_path_length, "Real Score": real_score_val,
+                           "Fake Score": fake_score_val, "Path Length": path_length_val, })
 
             if i % 100 == 0:
                 with torch.no_grad():
                     g_ema.eval()
                     sample, _ = g_ema([sample_z])
-                    utils.save_image(
-                        sample,
-                        f"sample/{str(i).zfill(6)}.png",
-                        nrow=int(args.n_sample ** 0.5),
-                        normalize=True,
-                        range=(-1, 1),
-                    )
-                    grid = make_grid(sample, nrow=int(args.n_sample ** 0.5),normalize=True, range=(-1, 1))
+                    utils.save_image(sample, f"sample/{str(i).zfill(6)}.png", nrow=int(args.n_sample ** 0.5),
+                                     normalize=True, range=(-1, 1), )
+                    grid = make_grid(sample, nrow=int(args.n_sample ** 0.5), normalize=True, range=(-1, 1))
                     # Add 0.5 after unnormalizing to [0, 255] to round to nearest integer
-                    ndarr = grid.mul(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to('cpu', torch.uint8).numpy().astype(np.float32)
+                    ndarr = grid.mul(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to('cpu',
+                                                                                       torch.uint8).numpy().astype(
+                        np.float32)
                     im = ndarr
                     label = 'GAN - GRID\ncurrent iter: ' + str(i)
                     a = plt.figure(dpi=600)
@@ -341,22 +309,12 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
                     send_telegram_picture(a, label)
                     plt.close('all')
                     if wandb and args.wandb:
-                        wandb.log({"current grid": wandb.Image(im, caption=f"Iter:{str(i).zfill(6)}")} )
-                    
+                        wandb.log({"current grid": wandb.Image(im, caption=f"Iter:{str(i).zfill(6)}")})
 
             if i % 10000 == 0:
-                torch.save(
-                    {
-                        "g": g_module.state_dict(),
-                        "d": d_module.state_dict(),
-                        "g_ema": g_ema.state_dict(),
-                        "g_optim": g_optim.state_dict(),
-                        "d_optim": d_optim.state_dict(),
-                        "args": args,
-                        "ada_aug_p": ada_aug_p,
-                    },
-                    f"checkpoint/{str(i).zfill(6)}.pt",
-                )
+                torch.save({"g": g_module.state_dict(), "d": d_module.state_dict(), "g_ema": g_ema.state_dict(),
+                            "g_optim": g_optim.state_dict(), "d_optim": d_optim.state_dict(), "args": args,
+                            "ada_aug_p": ada_aug_p, }, f"checkpoint/{str(i).zfill(6)}.pt", )
 
 
 if __name__ == "__main__":
@@ -433,16 +391,10 @@ if __name__ == "__main__":
     g_reg_ratio = args.g_reg_every / (args.g_reg_every + 1)
     d_reg_ratio = args.d_reg_every / (args.d_reg_every + 1)
 
-    g_optim = optim.Adam(
-        generator.parameters(),
-        lr=args.lr * g_reg_ratio,
-        betas=(0 ** g_reg_ratio, 0.99 ** g_reg_ratio),
-    )
-    d_optim = optim.Adam(
-        discriminator.parameters(),
-        lr=args.lr * d_reg_ratio,
-        betas=(0 ** d_reg_ratio, 0.99 ** d_reg_ratio),
-    )
+    g_optim = optim.Adam(generator.parameters(), lr=args.lr * g_reg_ratio,
+                         betas=(0 ** g_reg_ratio, 0.99 ** g_reg_ratio), )
+    d_optim = optim.Adam(discriminator.parameters(), lr=args.lr * d_reg_ratio,
+                         betas=(0 ** d_reg_ratio, 0.99 ** d_reg_ratio), )
 
     if args.ckpt is not None:
         print("load model:", args.ckpt)
@@ -464,19 +416,11 @@ if __name__ == "__main__":
         d_optim.load_state_dict(ckpt["d_optim"])
 
     if args.distributed:
-        generator = nn.parallel.DistributedDataParallel(
-            generator,
-            device_ids=[args.local_rank],
-            output_device=args.local_rank,
-            broadcast_buffers=False,
-        )
+        generator = nn.parallel.DistributedDataParallel(generator, device_ids=[args.local_rank],
+                                                        output_device=args.local_rank, broadcast_buffers=False, )
 
-        discriminator = nn.parallel.DistributedDataParallel(
-            discriminator,
-            device_ids=[args.local_rank],
-            output_device=args.local_rank,
-            broadcast_buffers=False,
-        )
+        discriminator = nn.parallel.DistributedDataParallel(discriminator, device_ids=[args.local_rank],
+                                                            output_device=args.local_rank, broadcast_buffers=False, )
 
     transform = transforms.Compose([transforms.Resize((256, 256)),  # please, no: transforms.RandomHorizontalFlip(),
                                     transforms.ToTensor(),
@@ -508,12 +452,9 @@ if __name__ == "__main__":
     dataset = txt_dataloader_styleGAN(args.path, transform=transform, decimateStep=args.decimate,
                                       decimateAlcala=args.decimateAlcala, decimateKitti=args.decimateKitti,
                                       conditional=False)
-    loader = data.DataLoader(
-        dataset,
-        batch_size=args.batch,
-        sampler=data_sampler(dataset, shuffle=True, distributed=args.distributed),
-        drop_last=True,
-    )
+    loader = data.DataLoader(dataset, batch_size=args.batch,
+                             sampler=data_sampler(dataset, shuffle=True, distributed=args.distributed),
+                             drop_last=True, )
 
     # check labels
     # lab = []
@@ -523,7 +464,7 @@ if __name__ == "__main__":
     # print('Double check. Should correspond to the above.')
     # print(a)
 
-    #exit(1)
+    # exit(1)
 
     if get_rank() == 0 and wandb is not None and args.wandb:
         wandb.init(project="stylegan 2")
