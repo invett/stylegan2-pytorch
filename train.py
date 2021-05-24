@@ -21,6 +21,9 @@ from collections import Counter
 from model.models import VGG
 
 
+from model.models import VGG
+
+
 try:
     import wandb
 
