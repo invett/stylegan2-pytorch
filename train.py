@@ -21,9 +21,6 @@ from collections import Counter
 from model.models import VGG
 
 
-from model.models import VGG
-
-
 try:
     import wandb
 
@@ -192,6 +189,8 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         batch_embeddings = intesection_classificator(fake_img)
         batch_distances = get_distances_embb(batch_embeddings, centroids)
 
+        centroid_distances = np.min(batch_distances, axis=1)
+
         fake_pred = discriminator(fake_img)
         real_pred = discriminator(real_img_aug)
         d_loss = d_logistic_loss(real_pred, fake_pred, centroid_distances)
@@ -314,7 +313,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
                     if wandb and args.wandb:
                         wandb.log({"current grid": wandb.Image(im, caption=f"Iter:{str(i).zfill(6)}")})
 
-            if i % 10000 == 0:
+            if i % 1000 == 0:
                 torch.save({"g": g_module.state_dict(), "d": d_module.state_dict(), "g_ema": g_ema.state_dict(),
                             "g_optim": g_optim.state_dict(), "d_optim": d_optim.state_dict(), "args": args,
                             "ada_aug_p": ada_aug_p, }, f"checkpoint/{str(i).zfill(6)}.pt", )
