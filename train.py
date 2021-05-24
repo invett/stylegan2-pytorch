@@ -14,8 +14,8 @@ from torchvision import transforms, utils
 from torchvision.utils import make_grid
 from tqdm import tqdm
 
-from miscellaneous.utils import get_distances_embb, send_telegram_picture
-from model.models import VGG
+# from miscellaneous.utils import get_distances_embb, send_telegram_picture
+# from model.models import VGG
 
 try:
     import wandb
@@ -124,7 +124,7 @@ def set_grad_none(model, targets):
 
 
 def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, device, intesection_classificator,
-          centroid_distances):
+          centroid_distances = None):
     loader = sample_data(loader)
 
     pbar = range(args.iter)
@@ -184,10 +184,11 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
             real_img_aug = real_img
 
         # ACA PONER LO DE LA RED DE CLASIFICACION CRUCES
-        batch_embeddings = intesection_classificator(fake_img)
-        batch_distances = get_distances_embb(batch_embeddings, centroids)
-
-        centroid_distances = np.min(batch_distances, axis=1)
+        centroid_distances = None
+        if centroid_distances is not None:
+            batch_embeddings = intesection_classificator(fake_img)
+            batch_distances = get_distances_embb(batch_embeddings, centroids)
+            centroid_distances = np.min(batch_distances, axis=1)
 
         fake_pred = discriminator(fake_img)
         real_pred = discriminator(real_img_aug)
