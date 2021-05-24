@@ -1,25 +1,21 @@
 import argparse
 import math
-import random
 import os
+import random
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import torch.distributed as dist
 from torch import nn, autograd, optim
 from torch.nn import functional as F
 from torch.utils import data
-import torch.distributed as dist
 from torchvision import transforms, utils
+from torchvision.utils import make_grid
 from tqdm import tqdm
 
-from PIL import Image
-import matplotlib.pyplot as plt
-from miscellaneous.utils import get_distances_embb, send_telegram_picture, send_telegram_message
-from torchvision.utils import make_grid
-from collections import Counter
-
+from miscellaneous.utils import get_distances_embb, send_telegram_picture
 from model.models import VGG
-
 
 try:
     import wandb
@@ -27,12 +23,12 @@ try:
 except ImportError:
     wandb = None
 
-from dataset import MultiResolutionDataset
 from sequencedataloader import txt_dataloader_styleGAN
 
 from distributed import (get_rank, synchronize, reduce_loss_dict, reduce_sum, get_world_size, )
 from op import conv2d_gradfix
 from non_leaking import augment, AdaptiveAugment
+
 
 def data_sampler(dataset, shuffle, distributed):
     if distributed:
@@ -91,6 +87,7 @@ def g_nonsaturating_loss(fake_pred, centroid_distances=None):
     else:
         return F.softplus(-fake_pred).mean()
 
+
 def g_path_regularize(fake_img, latents, mean_path_length, decay=0.01):
     noise = torch.randn_like(fake_img) / math.sqrt(fake_img.shape[2] * fake_img.shape[3])
     grad, = autograd.grad(outputs=(fake_img * noise).sum(), inputs=latents, create_graph=True)
@@ -126,7 +123,8 @@ def set_grad_none(model, targets):
             p.grad = None
 
 
-def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, device, intesection_classificator, centroids):
+def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, device, intesection_classificator,
+          centroid_distances):
     loader = sample_data(loader)
 
     pbar = range(args.iter)
@@ -313,7 +311,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
                     if wandb and args.wandb:
                         wandb.log({"current grid": wandb.Image(im, caption=f"Iter:{str(i).zfill(6)}")})
 
-            if i % 1000 == 0:
+            if i % 10000 == 0:
                 torch.save({"g": g_module.state_dict(), "d": d_module.state_dict(), "g_ema": g_ema.state_dict(),
                             "g_optim": g_optim.state_dict(), "d_optim": d_optim.state_dict(), "args": args,
                             "ada_aug_p": ada_aug_p, }, f"checkpoint/{str(i).zfill(6)}.pt", )
@@ -446,9 +444,20 @@ if __name__ == "__main__":
             print("=> no checkpoint found at '{}'".format(loadpath))
 
         # LOAD CENTROIDS
+        ct_folder = '/media/14TBDISK/ballardini/trainedmodels/centroids/'
+        ct_name = 'centroids.npy'
+        if os.path.isfile(os.path.join(ct_folder, ct_name)):
+            centroids = np.load = os.path.join(ct_folder, ct_name)
+        else:
 
-        centroids = 0
-
+            gt_list = []
+            embeddings = np.loadtxt('/media/14TBDISK/ballardini/trainedmodels/embeddings/embeddings.txt',
+                                    delimiter='\t')
+            labels = np.loadtxt('/media/14TBDISK/ballardini/trainedmodels/embeddings/labels.txt', delimiter='\t')
+            for i in range(7):
+                gt_list.append(np.mean(embeddings[labels == i], axis=0))
+            centroids = np.array(gt_list)
+            np.save(os.path.join(ct_folder, ct_name), centroids)
 
     # dataset = MultiResolutionDataset(args.path, transform, args.size)
     dataset = txt_dataloader_styleGAN(args.path, transform=transform, decimateStep=args.decimate,
