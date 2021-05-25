@@ -475,7 +475,7 @@ if __name__ == "__main__":
     if args.centroids:
 
         # RED
-        intesection_classificator = VGG(pretrained=False, embeddings=True, num_classes=7, version='vgg13', logits=False)
+        intesection_classificator = VGG(pretrained=False, embeddings=True, num_classes=7, version='vgg13', logits=False).to(device)
         loadpath = args.load_path
         if os.path.isfile(loadpath):
             print("=> Loading checkpoint '{}' ... ".format(loadpath))
