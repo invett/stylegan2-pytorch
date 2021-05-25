@@ -14,8 +14,8 @@ from torchvision import transforms, utils
 from torchvision.utils import make_grid
 from tqdm import tqdm
 
-# from miscellaneous.utils import get_distances_embb, send_telegram_picture
-# from model.models import VGG
+from miscellaneous.utils import send_telegram_picture
+from miscellaneous.utils import get_distances_embb
 
 try:
     import wandb
@@ -28,6 +28,47 @@ from sequencedataloader import txt_dataloader_styleGAN
 from distributed import (get_rank, synchronize, reduce_loss_dict, reduce_sum, get_world_size, )
 from op import conv2d_gradfix
 from non_leaking import augment, AdaptiveAugment
+
+
+class VGG(torch.nn.Module):
+
+    def __init__(self, pretrained=True, embeddings=False, num_classes=None, version='vgg11', logits=False):
+        super().__init__()
+        if version == 'vgg11':
+            model = models.vgg11_bn(pretrained=pretrained)
+        if version == 'vgg13':
+            model = models.vgg13_bn(pretrained=pretrained)
+        if version == 'vgg16':
+            model = models.vgg16_bn(pretrained=pretrained)
+        if version == 'vgg19':
+            model = models.vgg19_bn(pretrained=pretrained)
+
+        self.embeddings = embeddings
+        self.logits = logits
+
+        self.features = model.features
+        self.avgpool = model.avgpool
+
+        if embeddings:
+            self.classifier = model.classifier
+            self.classifier[6] = torch.nn.Linear(4096, 512)
+        else:
+            self.classifier = model.classifier
+            self.classifier[6] = torch.nn.Linear(4096, num_classes)
+
+        if self.logits:
+            self.softmax = torch.nn.LogSoftmax()
+
+    def forward(self, data):
+        features = self.features(data)
+        avg = self.avgpool(features)
+        avg = torch.flatten(avg, start_dim=1)
+        prediction = self.classifier(avg)
+
+        if self.logits and not self.embeddings:
+            prediction = self.softmax(prediction)
+
+        return prediction
 
 
 def data_sampler(dataset, shuffle, distributed):
