@@ -12,6 +12,7 @@ from torch.nn import functional as F
 from torch.utils import data
 from torchvision import transforms, utils
 from torchvision.utils import make_grid
+from torchvision import models
 from tqdm import tqdm
 
 from miscellaneous.utils import send_telegram_picture
@@ -165,7 +166,7 @@ def set_grad_none(model, targets):
 
 
 def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, device, intesection_classificator,
-          centroid_distances = None):
+          centroid_distances=None):
     loader = sample_data(loader)
 
     pbar = range(args.iter)
@@ -225,7 +226,6 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
             real_img_aug = real_img
 
         # ACA PONER LO DE LA RED DE CLASIFICACION CRUCES
-        centroid_distances = None
         if centroid_distances is not None:
             batch_embeddings = intesection_classificator(fake_img)
             batch_distances = get_distances_embb(batch_embeddings, centroids)
@@ -522,4 +522,5 @@ if __name__ == "__main__":
     if get_rank() == 0 and wandb is not None and args.wandb:
         wandb.init(project="stylegan 2")
 
-    train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, device, intesection_classificator, centroids)
+    train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, device,
+          intesection_classificator=intesection_classificator, centroid_distances=centroids)
