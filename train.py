@@ -16,7 +16,7 @@ from torchvision import models
 from tqdm import tqdm
 
 from miscellaneous.utils import send_telegram_picture
-from miscellaneous.utils import get_distances_embb
+from miscellaneous.utils import get_distances_embb, get_distances_embb_torch
 
 try:
     import wandb
@@ -74,6 +74,7 @@ class VGG(torch.nn.Module):
 
 def data_sampler(dataset, shuffle, distributed):
     if distributed:
+        print('running DistributedSampler!')
         return data.distributed.DistributedSampler(dataset, shuffle=shuffle)
 
     if shuffle:
@@ -106,7 +107,7 @@ def d_logistic_loss(real_pred, fake_pred, centroid_distances=None):
     real_loss = F.softplus(-real_pred)
     fake_loss = F.softplus(fake_pred)
 
-    if centroid_distances:
+    if centroid_distances is not None:
         fake_distance_loss = F.softplus(centroid_distances)
         return real_loss.mean() + fake_loss.mean() + fake_distance_loss.mean()
     else:
@@ -122,7 +123,7 @@ def d_r1_loss(real_pred, real_img):
 
 
 def g_nonsaturating_loss(fake_pred, centroid_distances=None):
-    if centroid_distances:
+    if centroid_distances is not None:
         loss = F.softplus(-fake_pred).mean()
         fake_distance_loss = F.softplus(-centroid_distances).mean()
         return loss + fake_distance_loss
@@ -214,6 +215,8 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
 
         requires_grad(generator, False)
         requires_grad(discriminator, True)
+        #requires_grad(intesection_classificator, False)
+        #intesection_classificator.eval()
 
         noise = mixing_noise(args.batch, args.latent, args.mixing, device)
         fake_img, _ = generator(noise)
@@ -225,15 +228,17 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         else:
             real_img_aug = real_img
 
-        # ACA PONER LO DE LA RED DE CLASIFICACION CRUCES
+        # ACA PONER LO DE LA RED DE CLASIFICACION CRUCES, para el **DISCRIMINATOR**
         if centroid_distances is not None:
             batch_embeddings = intesection_classificator(fake_img)
-            batch_distances = get_distances_embb(batch_embeddings, centroids)
-            centroid_distances = np.min(batch_distances, axis=1)
+            # batch_distances = get_distances_embb(batch_embeddings.detach().cpu().numpy(), centroids.detach().cpu().numpy())
+            # centroid_distances = np.min(batch_distances, axis=1)
+            batch_distances_torch = get_distances_embb_torch(batch_embeddings, centroids)
+            centroid_distances_torch, _ = torch.min(batch_distances_torch, 1)
 
         fake_pred = discriminator(fake_img)
         real_pred = discriminator(real_img_aug)
-        d_loss = d_logistic_loss(real_pred, fake_pred, centroid_distances)
+        d_loss = d_logistic_loss(real_pred, fake_pred, centroid_distances_torch)
 
         loss_dict["d"] = d_loss
         loss_dict["real_score"] = real_pred.mean()
@@ -270,15 +275,24 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
 
         requires_grad(generator, True)
         requires_grad(discriminator, False)
+        #requires_grad(intesection_classificator, False)
+        #intesection_classificator.eval()
+
 
         noise = mixing_noise(args.batch, args.latent, args.mixing, device)
         fake_img, _ = generator(noise)
+
+        # ACA PONER LO DE LA RED DE CLASIFICACION CRUCES, para el **GENERATOR**
+        if centroid_distances is not None:
+            batch_embeddings = intesection_classificator(fake_img)
+            batch_distances_torch = get_distances_embb_torch(batch_embeddings, centroids)
+            centroid_distances_torch, _ = torch.min(batch_distances_torch, 1)
 
         if args.augment:
             fake_img, _ = augment(fake_img, ada_aug_p)
 
         fake_pred = discriminator(fake_img)
-        g_loss = g_nonsaturating_loss(fake_pred, centroid_distances)
+        g_loss = g_nonsaturating_loss(fake_pred, centroid_distances_torch)
 
         loss_dict["g"] = g_loss
 
@@ -360,6 +374,9 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
 
 
 if __name__ == "__main__":
+
+    print('main')
+
     device = "cuda"
 
     parser = argparse.ArgumentParser(description="StyleGAN2 trainer")
@@ -408,10 +425,19 @@ if __name__ == "__main__":
     n_gpu = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
     args.distributed = n_gpu > 1
 
+    print('------------------------------------------')
+    print('args.distributed= ', str(args.distributed))
+    print('GPUS=             ', str(n_gpu))
+    print('------------------------------------------')
+
     if args.distributed:
+        print("inside if; args.local_rank= ", str(args.local_rank))
         torch.cuda.set_device(args.local_rank)
         torch.distributed.init_process_group(backend="nccl", init_method="env://")
         synchronize()
+
+    print('PASSED')
+    print('------------------------------------------')
 
     args.latent = 512
     args.n_mlp = 8
@@ -475,7 +501,8 @@ if __name__ == "__main__":
     if args.centroids:
 
         # RED
-        intesection_classificator = VGG(pretrained=False, embeddings=True, num_classes=7, version='vgg13', logits=False).to(device)
+        intesection_classificator = VGG(pretrained=False, embeddings=True, num_classes=7, version='vgg16', logits=False).to(device)
+        intesection_classificator.eval()
         loadpath = args.load_path
         if os.path.isfile(loadpath):
             print("=> Loading checkpoint '{}' ... ".format(loadpath))
@@ -489,7 +516,7 @@ if __name__ == "__main__":
         ct_folder = '/media/14TBDISK/ballardini/trainedmodels/centroids/'
         ct_name = 'centroids.npy'
         if os.path.isfile(os.path.join(ct_folder, ct_name)):
-            centroids = np.load = os.path.join(ct_folder, ct_name)
+            centroids = np.load(os.path.join(ct_folder, ct_name))
         else:
 
             gt_list = []
@@ -501,6 +528,8 @@ if __name__ == "__main__":
             centroids = np.array(gt_list)
             np.save(os.path.join(ct_folder, ct_name), centroids)
 
+    centroids = torch.cuda.FloatTensor(centroids)
+
     # dataset = MultiResolutionDataset(args.path, transform, args.size)
     dataset = txt_dataloader_styleGAN(args.path, transform=transform, decimateStep=args.decimate,
                                       decimateAlcala=args.decimateAlcala, decimateKitti=args.decimateKitti,
@@ -511,13 +540,11 @@ if __name__ == "__main__":
 
     # check labels
     # lab = []
-    # for i in range(len(loader.dataset.imgs)):
+    # for i in range(len(loader.dataset.imgs)):<
     #     lab.append(loader.dataset.__getitem__(i)[1])
     # a = dict(Counter(lab))
     # print('Double check. Should correspond to the above.')
     # print(a)
-
-    # exit(1)
 
     if get_rank() == 0 and wandb is not None and args.wandb:
         wandb.init(project="stylegan 2")
