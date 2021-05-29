@@ -225,6 +225,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
             real_img_aug = real_img
 
         # ACA PONER LO DE LA RED DE CLASIFICACION CRUCES, para el **DISCRIMINATOR**
+        centroid_distances_torch = None
         if centroid_distances is not None:
             batch_embeddings = intesection_classificator(fake_img)
             # batch_distances = get_distances_embb(batch_embeddings.detach().cpu().numpy(), centroids.detach().cpu().numpy())
@@ -283,6 +284,17 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
             batch_embeddings = intesection_classificator(fake_img)
             batch_distances_torch = get_distances_embb_torch(batch_embeddings, centroids)
             centroid_distances_torch, _ = torch.min(batch_distances_torch, 1)
+
+        # tosave = batch_embeddings.detach().cpu().numpy()
+        # fp = '/home/ballardini/history.npz'
+        # if os.path.isfile(fp):
+        #     f = np.load(fp)
+        #     f = f['embeddings']
+        # else:
+        #     f = np.empty((0, 512), dtype=tosave.dtype)
+        # f = np.vstack((f, tosave))
+        # np.savez_compressed(fp, embeddings=f)
+        # centroid_distances_torch = None
 
         if args.augment:
             fake_img, _ = augment(fake_img, ada_aug_p)
