@@ -524,7 +524,7 @@ if __name__ == "__main__":
             centroids = np.array(gt_list)
             np.save(os.path.join(ct_folder, ct_name), centroids)
 
-    centroids = torch.cuda.FloatTensor(centroids)
+        centroids = torch.cuda.FloatTensor(centroids)
 
     # dataset = MultiResolutionDataset(args.path, transform, args.size)
     dataset = txt_dataloader_styleGAN(args.path, transform=transform, decimateStep=args.decimate,
