@@ -106,8 +106,11 @@ def sample_data(loader):
 def d_logistic_loss(real_pred, fake_pred, centroid_distances=None):
     real_loss = F.softplus(-real_pred)
     fake_loss = F.softplus(fake_pred)
-    
-    return real_loss.mean() + fake_loss.mean()
+    if centroid_distances is not None:
+        fake_distance_loss = F.softplus(centroid_distances).mean()
+        return real_loss.mean() + fake_loss.mean() + fake_distance_loss
+    else
+        return real_loss.mean() + fake_loss.mean()
 
 
 def d_r1_loss(real_pred, real_img):
