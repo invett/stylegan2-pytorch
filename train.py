@@ -14,6 +14,7 @@ from torchvision import transforms, utils
 from torchvision.utils import make_grid
 from torchvision import models
 from tqdm import tqdm
+import time
 
 from miscellaneous.utils import send_telegram_picture
 from miscellaneous.utils import get_distances_embb, get_distances_embb_torch
@@ -289,15 +290,18 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
             centroid_distances_torch, _ = torch.min(batch_distances_torch, 1)
 
             tosave = batch_embeddings.detach().cpu().numpy()
-            fp = '/home/ballardini/history.npz'
-            if os.path.isfile(fp):
-                f = np.load(fp, allow_pickle=True)
+            fp = '/home/ballardini/history' + str(int(time.time())) + '.npz'
+            if 'fp_old' in locals():
+                f = np.load(fp_old, allow_pickle=True)
+                os.system('rm ' + fp_old)
                 f = f['embeddings']
             else:
                 f = np.empty((0, 512), dtype=tosave.dtype)
+                fp_old = fp
             f = np.vstack((f, tosave))
             np.savez_compressed(fp, embeddings=f)
             centroid_distances_torch = None
+            fp_old = fp
 
         if args.augment:
             fake_img, _ = augment(fake_img, ada_aug_p)
