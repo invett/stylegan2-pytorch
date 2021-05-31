@@ -109,7 +109,7 @@ def d_logistic_loss(real_pred, fake_pred, centroid_distances=None):
     if centroid_distances is not None:
         fake_distance_loss = F.softplus(centroid_distances).mean()
         return real_loss.mean() + fake_loss.mean() + fake_distance_loss
-    else
+    else:
         return real_loss.mean() + fake_loss.mean()
 
 
@@ -288,16 +288,16 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
             batch_distances_torch = get_distances_embb_torch(batch_embeddings, centroids)
             centroid_distances_torch, _ = torch.min(batch_distances_torch, 1)
 
-             tosave = batch_embeddings.detach().cpu().numpy()
-             fp = '/home/ballardini/history.npz'
-             if os.path.isfile(fp):
-                 f = np.load(fp, allow_pickle=True)
-                 f = f['embeddings']
-             else:
-                 f = np.empty((0, 512), dtype=tosave.dtype)
-             f = np.vstack((f, tosave))
-             np.savez_compressed(fp, embeddings=f)
-             centroid_distances_torch = None
+            tosave = batch_embeddings.detach().cpu().numpy()
+            fp = '/home/ballardini/history.npz'
+            if os.path.isfile(fp):
+                f = np.load(fp, allow_pickle=True)
+                f = f['embeddings']
+            else:
+                f = np.empty((0, 512), dtype=tosave.dtype)
+            f = np.vstack((f, tosave))
+            np.savez_compressed(fp, embeddings=f)
+            centroid_distances_torch = None
 
         if args.augment:
             fake_img, _ = augment(fake_img, ada_aug_p)
