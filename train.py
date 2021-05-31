@@ -290,7 +290,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
             centroid_distances_torch, _ = torch.min(batch_distances_torch, 1)
 
             tosave = batch_embeddings.detach().cpu().numpy()
-            fp = '/home/ballardini/history' + str(int(time.time())) + '.npz'
+            fp = '/home/ballardini/history' + str(int(time.time())) + '_' + str(os.getpid()) + '_' + '.npz'
             if 'fp_old' in locals():
                 f = np.load(fp_old, allow_pickle=True)
                 os.system('rm ' + fp_old)
