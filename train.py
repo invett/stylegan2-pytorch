@@ -19,6 +19,8 @@ import time
 from miscellaneous.utils import send_telegram_picture
 from miscellaneous.utils import get_distances_embb, get_distances_embb_torch
 
+from sklearn.preprocessing import RobustScaler, StandardScaler
+
 try:
     import wandb
 
@@ -104,7 +106,7 @@ def sample_data(loader):
             yield batch
 
 
-def d_logistic_loss(real_pred, fake_pred, centroid_distances=None):
+def d_logistic_loss(real_pred, fake_pred, centroid_distances=None, indices=None):
     real_loss = F.softplus(-real_pred)
     fake_loss = F.softplus(fake_pred)
     if centroid_distances is not None:
@@ -169,6 +171,57 @@ def set_grad_none(model, targets):
 def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, device, intesection_classificator,
           centroid_distances=None):
     loader = sample_data(loader)
+
+    ############################### sklearn parameters #################################################################
+
+    # load data
+    KITTI_data = np.loadtxt('../../GAN-distances-analysis/rgb.alcala26.kitti.kitti360/distances_kitti_road_train.val.test.npy.txt')
+    KITTI_labels = np.loadtxt('../../GAN-distances-analysis/rgb.alcala26.kitti.kitti360/KITTI-ROAD-prefix_all_v002.txt', usecols=(1), delimiter=';')
+    ALCALA_data = np.loadtxt('../../GAN-distances-analysis/rgb.alcala26.kitti.kitti360/distances_alcala26_train.val.test.npy.txt')
+    ALCALA_labels = np.loadtxt('../../GAN-distances-analysis/rgb.alcala26.kitti.kitti360/ALCALA26-prefix_all_nonewfiles_v002.txt', usecols=(1), delimiter=';')
+
+    # create clusters
+    KITTI_c_0 = KITTI_data[np.argwhere(KITTI_labels == 0)].squeeze()[:, 1].reshape(-1, 1)
+    KITTI_c_1 = KITTI_data[np.argwhere(KITTI_labels == 1)].squeeze()[:, 1].reshape(-1, 1)
+    KITTI_c_2 = KITTI_data[np.argwhere(KITTI_labels == 2)].squeeze()[:, 1].reshape(-1, 1)
+    KITTI_c_3 = KITTI_data[np.argwhere(KITTI_labels == 3)].squeeze()[:, 1].reshape(-1, 1)
+    KITTI_c_4 = KITTI_data[np.argwhere(KITTI_labels == 4)].squeeze()[:, 1].reshape(-1, 1)
+    KITTI_c_5 = KITTI_data[np.argwhere(KITTI_labels == 5)].squeeze()[:, 1].reshape(-1, 1)
+    KITTI_c_6 = KITTI_data[np.argwhere(KITTI_labels == 6)].squeeze()[:, 1].reshape(-1, 1)
+
+    ALCALA_c_0 = ALCALA_data[np.argwhere(ALCALA_labels == 0)].squeeze()[:, 1].reshape(-1, 1)
+    ALCALA_c_1 = ALCALA_data[np.argwhere(ALCALA_labels == 1)].squeeze()[:, 1].reshape(-1, 1)
+    ALCALA_c_2 = ALCALA_data[np.argwhere(ALCALA_labels == 2)].squeeze()[:, 1].reshape(-1, 1)
+    ALCALA_c_3 = ALCALA_data[np.argwhere(ALCALA_labels == 3)].squeeze()[:, 1].reshape(-1, 1)
+    ALCALA_c_4 = ALCALA_data[np.argwhere(ALCALA_labels == 4)].squeeze()[:, 1].reshape(-1, 1)
+    ALCALA_c_5 = ALCALA_data[np.argwhere(ALCALA_labels == 5)].squeeze()[:, 1].reshape(-1, 1)
+    ALCALA_c_6 = ALCALA_data[np.argwhere(ALCALA_labels == 6)].squeeze()[:, 1].reshape(-1, 1)
+
+    # mix alcala and kitti, create standard-scaler
+    standardscaler_c_0 = StandardScaler().fit(np.vstack([KITTI_c_0, ALCALA_c_0]))
+    standardscaler_c_1 = StandardScaler().fit(np.vstack([KITTI_c_1, ALCALA_c_1]))
+    standardscaler_c_2 = StandardScaler().fit(np.vstack([KITTI_c_2, ALCALA_c_2]))
+    standardscaler_c_3 = StandardScaler().fit(np.vstack([KITTI_c_3, ALCALA_c_3]))
+    standardscaler_c_4 = StandardScaler().fit(np.vstack([KITTI_c_4, ALCALA_c_4]))
+    standardscaler_c_5 = StandardScaler().fit(np.vstack([KITTI_c_5, ALCALA_c_5]))
+    standardscaler_c_6 = StandardScaler().fit(np.vstack([KITTI_c_6, ALCALA_c_6]))
+
+    # mix alcala and kitti, create robust-scaler
+    robustscaler_c_0 = RobustScaler().fit(np.vstack([KITTI_c_0, ALCALA_c_0]))
+    robustscaler_c_1 = RobustScaler().fit(np.vstack([KITTI_c_1, ALCALA_c_1]))
+    robustscaler_c_2 = RobustScaler().fit(np.vstack([KITTI_c_2, ALCALA_c_2]))
+    robustscaler_c_3 = RobustScaler().fit(np.vstack([KITTI_c_3, ALCALA_c_3]))
+    robustscaler_c_4 = RobustScaler().fit(np.vstack([KITTI_c_4, ALCALA_c_4]))
+    robustscaler_c_5 = RobustScaler().fit(np.vstack([KITTI_c_5, ALCALA_c_5]))
+    robustscaler_c_6 = RobustScaler().fit(np.vstack([KITTI_c_6, ALCALA_c_6]))
+
+    standardscalers = [standardscaler_c_0, standardscaler_c_1, standardscaler_c_2, standardscaler_c_3,
+                       standardscaler_c_4, standardscaler_c_5, standardscaler_c_6]
+    robustscalers = [robustscaler_c_0, robustscaler_c_1, robustscaler_c_2, robustscaler_c_3, robustscaler_c_4,
+                     robustscaler_c_5, robustscaler_c_6]
+
+    ############################### sklearn parameters #################################################################
+
 
     pbar = range(args.iter)
 
@@ -235,11 +288,29 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
             # batch_distances = get_distances_embb(batch_embeddings.detach().cpu().numpy(), centroids.detach().cpu().numpy())
             # centroid_distances = np.min(batch_distances, axis=1)
             batch_distances_torch = get_distances_embb_torch(batch_embeddings, centroids)
-            centroid_distances_torch, _ = torch.min(batch_distances_torch, 1)
+            centroid_distances_torch, indeces = torch.min(batch_distances_torch, 1)
+
+            for val, index in zip(centroid_distances_torch, indeces):
+                if index == torch.tensor([0]).cuda():
+                    print('is 0 and value is')
+                    print(val.item())
+                    print(robustscalers[0].transform(np.array(val.item()).reshape(-1, 1)).squeeze())
+                if index == torch.tensor([1]).cuda():
+                    print('is 0 and value is')
+                    print(val.item())
+                    print(robustscalers[1].transform(np.array(val.item()).reshape(-1, 1)).squeeze())
+                if index == torch.tensor([2]).cuda():
+                    print('is 0 and value is')
+                    print(val.item())
+                    print(robustscalers[2].transform(np.array(val.item()).reshape(-1, 1)).squeeze())
+
+            #F.softplus(centroid_distances).mean()
+
+            print('ok')
 
         fake_pred = discriminator(fake_img)
         real_pred = discriminator(real_img_aug)
-        d_loss = d_logistic_loss(real_pred, fake_pred, centroid_distances_torch)
+        d_loss = d_logistic_loss(real_pred, fake_pred, centroid_distances_torch, indeces)
 
         loss_dict["d"] = d_loss
         loss_dict["real_score"] = real_pred.mean()
