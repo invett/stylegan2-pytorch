@@ -106,7 +106,7 @@ def sample_data(loader):
             yield batch
 
 
-def d_logistic_loss(real_pred, fake_pred, centroid_distances=None, indices=None):
+def d_logistic_loss(real_pred, fake_pred, centroid_distances=None):
     real_loss = F.softplus(-real_pred)
     fake_loss = F.softplus(fake_pred)
     if centroid_distances is not None:
@@ -285,32 +285,32 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         centroid_distances_torch = None
         if centroid_distances is not None:
             batch_embeddings = intesection_classificator(fake_img)
-            # batch_distances = get_distances_embb(batch_embeddings.detach().cpu().numpy(), centroids.detach().cpu().numpy())
-            # centroid_distances = np.min(batch_distances, axis=1)
             batch_distances_torch = get_distances_embb_torch(batch_embeddings, centroids)
-            centroid_distances_torch, indeces = torch.min(batch_distances_torch, 1)
+            centroid_distances_torch, indices = torch.min(batch_distances_torch, 1)
 
-            for val, index in zip(centroid_distances_torch, indeces):
+            scaled_data = []
+            for val, index in zip(centroid_distances_torch, indices):
                 if index == torch.tensor([0]).cuda():
-                    print('is 0 and value is')
-                    print(val.item())
-                    print(robustscalers[0].transform(np.array(val.item()).reshape(-1, 1)).squeeze())
+                    scaled_data.append(robustscalers[0].transform(np.array(val.item()).reshape(-1, 1))[0][0])
                 if index == torch.tensor([1]).cuda():
-                    print('is 0 and value is')
-                    print(val.item())
-                    print(robustscalers[1].transform(np.array(val.item()).reshape(-1, 1)).squeeze())
+                    scaled_data.append(robustscalers[1].transform(np.array(val.item()).reshape(-1, 1))[0][0])
                 if index == torch.tensor([2]).cuda():
-                    print('is 0 and value is')
-                    print(val.item())
-                    print(robustscalers[2].transform(np.array(val.item()).reshape(-1, 1)).squeeze())
+                    scaled_data.append(robustscalers[2].transform(np.array(val.item()).reshape(-1, 1))[0][0])
+                if index == torch.tensor([3]).cuda():
+                    scaled_data.append(robustscalers[3].transform(np.array(val.item()).reshape(-1, 1))[0][0])
+                if index == torch.tensor([4]).cuda():
+                    scaled_data.append(robustscalers[4].transform(np.array(val.item()).reshape(-1, 1))[0][0])
+                if index == torch.tensor([5]).cuda():
+                    scaled_data.append(robustscalers[5].transform(np.array(val.item()).reshape(-1, 1))[0][0])
+                if index == torch.tensor([6]).cuda():
+                    scaled_data.append(robustscalers[6].transform(np.array(val.item()).reshape(-1, 1))[0][0])
 
-            #F.softplus(centroid_distances).mean()
-
-            print('ok')
+            # convert to tensor + gpu and send this value instead of centroid_distances_torch
+            scaled_data = torch.tensor(scaled_data).to(device)
 
         fake_pred = discriminator(fake_img)
         real_pred = discriminator(real_img_aug)
-        d_loss = d_logistic_loss(real_pred, fake_pred, centroid_distances_torch, indeces)
+        d_loss = d_logistic_loss(real_pred, fake_pred, scaled_data)
 
         loss_dict["d"] = d_loss
         loss_dict["real_score"] = real_pred.mean()
@@ -358,27 +358,49 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         if centroid_distances is not None:
             batch_embeddings = intesection_classificator(fake_img)
             batch_distances_torch = get_distances_embb_torch(batch_embeddings, centroids)
-            centroid_distances_torch, _ = torch.min(batch_distances_torch, 1)
+            centroid_distances_torch, indices = torch.min(batch_distances_torch, 1)
 
-            tosave = batch_embeddings.detach().cpu().numpy()
-            fp = '/home/ballardini/history' + str(int(time.time())) + '_' + str(os.getpid()) + '_' + '.npz'
-            if 'fp_old' in locals():
-                f = np.load(fp_old, allow_pickle=True)
-                os.system('rm ' + fp_old)
-                f = f['embeddings']
-            else:
-                f = np.empty((0, 512), dtype=tosave.dtype)
-                fp_old = fp
-            f = np.vstack((f, tosave))
-            np.savez_compressed(fp, embeddings=f)
-            centroid_distances_torch = None
-            fp_old = fp
+            scaled_data = []
+            for val, index in zip(centroid_distances_torch, indices):
+                if index == torch.tensor([0]).cuda():
+                    scaled_data.append(robustscalers[0].transform(np.array(val.item()).reshape(-1, 1))[0][0])
+                if index == torch.tensor([1]).cuda():
+                    scaled_data.append(robustscalers[1].transform(np.array(val.item()).reshape(-1, 1))[0][0])
+                if index == torch.tensor([2]).cuda():
+                    scaled_data.append(robustscalers[2].transform(np.array(val.item()).reshape(-1, 1))[0][0])
+                if index == torch.tensor([3]).cuda():
+                    scaled_data.append(robustscalers[3].transform(np.array(val.item()).reshape(-1, 1))[0][0])
+                if index == torch.tensor([4]).cuda():
+                    scaled_data.append(robustscalers[4].transform(np.array(val.item()).reshape(-1, 1))[0][0])
+                if index == torch.tensor([5]).cuda():
+                    scaled_data.append(robustscalers[5].transform(np.array(val.item()).reshape(-1, 1))[0][0])
+                if index == torch.tensor([6]).cuda():
+                    scaled_data.append(robustscalers[6].transform(np.array(val.item()).reshape(-1, 1))[0][0])
+
+            # convert to tensor + gpu and send this value instead of centroid_distances_torch
+            scaled_data = torch.tensor(scaled_data).to(device)
+
+            # this part of the code saves the distances, just to know if we're getting best results.
+
+            # tosave = batch_embeddings.detach().cpu().numpy()
+            # fp = '/home/ballardini/history' + str(int(time.time())) + '_' + str(os.getpid()) + '_' + '.npz'
+            # if 'fp_old' in locals():
+            #     f = np.load(fp_old, allow_pickle=True)
+            #     os.system('rm ' + fp_old)
+            #     f = f['embeddings']
+            # else:
+            #     f = np.empty((0, 512), dtype=tosave.dtype)
+            #     fp_old = fp
+            # f = np.vstack((f, tosave))
+            # np.savez_compressed(fp, embeddings=f)
+            # centroid_distances_torch = None
+            # fp_old = fp
 
         if args.augment:
             fake_img, _ = augment(fake_img, ada_aug_p)
 
         fake_pred = discriminator(fake_img)
-        g_loss = g_nonsaturating_loss(fake_pred, centroid_distances_torch)
+        g_loss = g_nonsaturating_loss(fake_pred, scaled_data)
 
         loss_dict["g"] = g_loss
 
