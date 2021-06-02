@@ -111,7 +111,7 @@ def d_logistic_loss(real_pred, fake_pred, centroid_distances=None):
     fake_loss = F.softplus(fake_pred)
     if centroid_distances is not None:
         fake_distance_loss = F.softplus(centroid_distances).mean()
-        return real_loss.mean() + fake_loss.mean() + fake_distance_loss
+        return real_loss.mean() + fake_loss.mean() + fake_distance_loss, fake_distance_loss
     else:
         return real_loss.mean() + fake_loss.mean()
 
@@ -310,9 +310,10 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
 
         fake_pred = discriminator(fake_img)
         real_pred = discriminator(real_img_aug)
-        d_loss = d_logistic_loss(real_pred, fake_pred, scaled_data)
+        d_loss, distance_loss = d_logistic_loss(real_pred, fake_pred, scaled_data)
 
         loss_dict["d"] = d_loss
+        loss_dict["distance_loss"] = distance_loss
         loss_dict["real_score"] = real_pred.mean()
         loss_dict["fake_score"] = fake_pred.mean()
 
@@ -438,6 +439,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
 
         d_loss_val = loss_reduced["d"].mean().item()
         g_loss_val = loss_reduced["g"].mean().item()
+        distance_loss_val = loss_reduced["distance_loss"].mean().item()
         r1_val = loss_reduced["r1"].mean().item()
         path_loss_val = loss_reduced["path"].mean().item()
         real_score_val = loss_reduced["real_score"].mean().item()
@@ -451,7 +453,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
 
             if wandb and args.wandb:
                 wandb.log({"Generator": g_loss_val, "Discriminator": d_loss_val, "Augment": ada_aug_p, "Rt": r_t_stat,
-                           "R1": r1_val, "Path Length Regularization": path_loss_val,
+                           "R1": r1_val, "Path Length Regularization": path_loss_val, "distance_loss": distance_loss_val,
                            "Mean Path Length": mean_path_length, "Real Score": real_score_val,
                            "Fake Score": fake_score_val, "Path Length": path_length_val, })
 
