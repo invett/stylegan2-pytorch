@@ -181,21 +181,21 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
     ALCALA_labels = np.loadtxt('../../GAN-distances-analysis/rgb.alcala26.kitti.kitti360/ALCALA26-prefix_all_nonewfiles_v002.txt', usecols=(1), delimiter=';')
 
     # create clusters
-    KITTI_c_0 = KITTI_data[np.argwhere(KITTI_labels == 0)].squeeze()[:, 1].reshape(-1, 1)
+    KITTI_c_0 = KITTI_data[np.argwhere(KITTI_labels == 0)].squeeze()[:, 0].reshape(-1, 1)
     KITTI_c_1 = KITTI_data[np.argwhere(KITTI_labels == 1)].squeeze()[:, 1].reshape(-1, 1)
-    KITTI_c_2 = KITTI_data[np.argwhere(KITTI_labels == 2)].squeeze()[:, 1].reshape(-1, 1)
-    KITTI_c_3 = KITTI_data[np.argwhere(KITTI_labels == 3)].squeeze()[:, 1].reshape(-1, 1)
-    KITTI_c_4 = KITTI_data[np.argwhere(KITTI_labels == 4)].squeeze()[:, 1].reshape(-1, 1)
-    KITTI_c_5 = KITTI_data[np.argwhere(KITTI_labels == 5)].squeeze()[:, 1].reshape(-1, 1)
-    KITTI_c_6 = KITTI_data[np.argwhere(KITTI_labels == 6)].squeeze()[:, 1].reshape(-1, 1)
+    KITTI_c_2 = KITTI_data[np.argwhere(KITTI_labels == 2)].squeeze()[:, 2].reshape(-1, 1)
+    KITTI_c_3 = KITTI_data[np.argwhere(KITTI_labels == 3)].squeeze()[:, 3].reshape(-1, 1)
+    KITTI_c_4 = KITTI_data[np.argwhere(KITTI_labels == 4)].squeeze()[:, 4].reshape(-1, 1)
+    KITTI_c_5 = KITTI_data[np.argwhere(KITTI_labels == 5)].squeeze()[:, 5].reshape(-1, 1)
+    KITTI_c_6 = KITTI_data[np.argwhere(KITTI_labels == 6)].squeeze()[:, 6].reshape(-1, 1)
 
-    ALCALA_c_0 = ALCALA_data[np.argwhere(ALCALA_labels == 0)].squeeze()[:, 1].reshape(-1, 1)
+    ALCALA_c_0 = ALCALA_data[np.argwhere(ALCALA_labels == 0)].squeeze()[:, 0].reshape(-1, 1)
     ALCALA_c_1 = ALCALA_data[np.argwhere(ALCALA_labels == 1)].squeeze()[:, 1].reshape(-1, 1)
-    ALCALA_c_2 = ALCALA_data[np.argwhere(ALCALA_labels == 2)].squeeze()[:, 1].reshape(-1, 1)
-    ALCALA_c_3 = ALCALA_data[np.argwhere(ALCALA_labels == 3)].squeeze()[:, 1].reshape(-1, 1)
-    ALCALA_c_4 = ALCALA_data[np.argwhere(ALCALA_labels == 4)].squeeze()[:, 1].reshape(-1, 1)
-    ALCALA_c_5 = ALCALA_data[np.argwhere(ALCALA_labels == 5)].squeeze()[:, 1].reshape(-1, 1)
-    ALCALA_c_6 = ALCALA_data[np.argwhere(ALCALA_labels == 6)].squeeze()[:, 1].reshape(-1, 1)
+    ALCALA_c_2 = ALCALA_data[np.argwhere(ALCALA_labels == 2)].squeeze()[:, 2].reshape(-1, 1)
+    ALCALA_c_3 = ALCALA_data[np.argwhere(ALCALA_labels == 3)].squeeze()[:, 3].reshape(-1, 1)
+    ALCALA_c_4 = ALCALA_data[np.argwhere(ALCALA_labels == 4)].squeeze()[:, 4].reshape(-1, 1)
+    ALCALA_c_5 = ALCALA_data[np.argwhere(ALCALA_labels == 5)].squeeze()[:, 5].reshape(-1, 1)
+    ALCALA_c_6 = ALCALA_data[np.argwhere(ALCALA_labels == 6)].squeeze()[:, 6].reshape(-1, 1)
 
     # mix alcala and kitti, create standard-scaler
     standardscaler_c_0 = StandardScaler().fit(np.vstack([KITTI_c_0, ALCALA_c_0]))
