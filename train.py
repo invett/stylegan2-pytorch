@@ -477,7 +477,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
                     if wandb and args.wandb:
                         wandb.log({"current grid": wandb.Image(im, caption=f"Iter:{str(i).zfill(6)}")})
 
-            if i % 1000 == 0:
+            if i % 5000 == 0:
                 torch.save({"g": g_module.state_dict(), "d": d_module.state_dict(), "g_ema": g_ema.state_dict(),
                             "g_optim": g_optim.state_dict(), "d_optim": d_optim.state_dict(), "args": args,
                             "ada_aug_p": ada_aug_p, }, f"checkpoint/{wandb.run.name}_{str(i).zfill(6)}.pt", )
