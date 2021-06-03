@@ -287,33 +287,48 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
             batch_embeddings = intesection_classificator(fake_img)
             batch_distances_torch = get_distances_embb_torch(batch_embeddings, centroids)
             centroid_distances_torch, indices = torch.min(batch_distances_torch, 1)
+            
+            batch_embeddings_reals = intesection_classificator(real_img_aug)
+            batch_distances_torch_reals = get_distances_embb_torch(batch_embeddings_reals, centroids)
+            centroid_distances_torch_reals, indices_reals = torch.min(batch_distances_torch_reals, 1)
 
             scaled_data = []
-            for val, index in zip(centroid_distances_torch, indices):
+            scaled_data_reals = []
+            for val, index, val_reals, index_reals in zip(centroid_distances_torch, indices, centroid_distances_torch_reals, indices_reals):
                 if index == torch.tensor([0]).cuda():
                     scaled_data.append(robustscalers[0].transform(np.array(val.item()).reshape(-1, 1))[0][0])
+                    scaled_data_reals.append(robustscalers[0].transform(np.array(val_reals.item()).reshape(-1, 1))[0][0])
                 if index == torch.tensor([1]).cuda():
                     scaled_data.append(robustscalers[1].transform(np.array(val.item()).reshape(-1, 1))[0][0])
+                    scaled_data_reals.append(robustscalers[1].transform(np.array(val_reals.item()).reshape(-1, 1))[0][0])
                 if index == torch.tensor([2]).cuda():
                     scaled_data.append(robustscalers[2].transform(np.array(val.item()).reshape(-1, 1))[0][0])
+                    scaled_data_reals.append(robustscalers[2].transform(np.array(val_reals.item()).reshape(-1, 1))[0][0])
                 if index == torch.tensor([3]).cuda():
                     scaled_data.append(robustscalers[3].transform(np.array(val.item()).reshape(-1, 1))[0][0])
+                    scaled_data_reals.append(robustscalers[3].transform(np.array(val_reals.item()).reshape(-1, 1))[0][0])
                 if index == torch.tensor([4]).cuda():
                     scaled_data.append(robustscalers[4].transform(np.array(val.item()).reshape(-1, 1))[0][0])
+                    scaled_data_reals.append(robustscalers[4].transform(np.array(val_reals.item()).reshape(-1, 1))[0][0])
                 if index == torch.tensor([5]).cuda():
                     scaled_data.append(robustscalers[5].transform(np.array(val.item()).reshape(-1, 1))[0][0])
+                    scaled_data_reals.append(robustscalers[5].transform(np.array(val_reals.item()).reshape(-1, 1))[0][0])
                 if index == torch.tensor([6]).cuda():
                     scaled_data.append(robustscalers[6].transform(np.array(val.item()).reshape(-1, 1))[0][0])
+                    scaled_data_reals.append(robustscalers[6].transform(np.array(val_reals.item()).reshape(-1, 1))[0][0])
 
             # convert to tensor + gpu and send this value instead of centroid_distances_torch
             scaled_data = torch.tensor(scaled_data).to(device)
+            scaled_data_reals = torch.tensor(scaled_data_reals).to(device)
 
         fake_pred = discriminator(fake_img)
         real_pred = discriminator(real_img_aug)
         d_loss, distance_loss = d_logistic_loss(real_pred, fake_pred, scaled_data)
+        distance_loss_reals = F.softplus(scaled_data_reals).mean()
 
         loss_dict["d"] = d_loss
         loss_dict["distance_loss"] = distance_loss
+        loss_dict["distance_loss_reals"] = distance_loss_reals
         loss_dict["real_score"] = real_pred.mean()
         loss_dict["fake_score"] = fake_pred.mean()
 
@@ -440,6 +455,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         d_loss_val = loss_reduced["d"].mean().item()
         g_loss_val = loss_reduced["g"].mean().item()
         distance_loss_val = loss_reduced["distance_loss"].mean().item()
+        distance_loss_val_reals = loss_reduced["distance_loss_reals"].mean().item()
         r1_val = loss_reduced["r1"].mean().item()
         path_loss_val = loss_reduced["path"].mean().item()
         real_score_val = loss_reduced["real_score"].mean().item()
@@ -454,7 +470,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
             if wandb and args.wandb:
                 wandb.log({"Generator": g_loss_val, "Discriminator": d_loss_val, "Augment": ada_aug_p, "Rt": r_t_stat,
                            "R1": r1_val, "Path Length Regularization": path_loss_val, "distance_loss": distance_loss_val,
-                           "Mean Path Length": mean_path_length, "Real Score": real_score_val,
+                           "Mean Path Length": mean_path_length, "Real Score": real_score_val, "distance_loss_reals": distance_loss_val_reals,
                            "Fake Score": fake_score_val, "Path Length": path_length_val, })
 
             if i % 100 == 0:
