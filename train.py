@@ -282,7 +282,8 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
             real_img_aug = real_img
 
         # ACA PONER LO DE LA RED DE CLASIFICACION CRUCES, para el **DISCRIMINATOR**
-        centroid_distances_torch = None
+        scaled_data = None
+        scaled_data_reals = 0
         if centroid_distances is not None:
             batch_embeddings = intesection_classificator(fake_img)
             batch_distances_torch = get_distances_embb_torch(batch_embeddings, centroids)
