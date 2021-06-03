@@ -325,13 +325,16 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         fake_pred = discriminator(fake_img)
         real_pred = discriminator(real_img_aug)
 
+        # we have to check what we want to log.. some tricks to avoid bugs
         if centroid_distances is not None:
             d_loss, distance_loss = d_logistic_loss(real_pred, fake_pred, scaled_data)
             distance_loss_reals = F.softplus(scaled_data_reals).mean()
         else:
             d_loss = d_logistic_loss(real_pred, fake_pred)
-            distance_loss = torch.tensor([0.]).to(device)
-            distance_loss_reals = torch.tensor([0.]).to(device)  # TODO: maybe would be nice to log even with no vgg!?
+            # if i don't use "softplus" and i put the tensor, then error..
+            # TODO: maybe would be nice to log even with no vgg!?
+            distance_loss = F.softplus(torch.tensor([-100.]).to(device)).mean()
+            distance_loss_reals = F.softplus(torch.tensor([-100.]).to(device)).mean()
 
         loss_dict["d"] = d_loss
         loss_dict["distance_loss"] = distance_loss
