@@ -288,7 +288,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
             batch_distances_torch = get_distances_embb_torch(batch_embeddings, centroids)
             centroid_distances_torch, indices = torch.min(batch_distances_torch, 1)
             
-            batch_embeddings_reals = intesection_classificator(real_img_aug)
+            batch_embeddings_reals = intesection_classificator(real_img)
             batch_distances_torch_reals = get_distances_embb_torch(batch_embeddings_reals, centroids)
             centroid_distances_torch_reals, indices_reals = torch.min(batch_distances_torch_reals, 1)
 
