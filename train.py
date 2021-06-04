@@ -274,13 +274,6 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         noise = mixing_noise(args.batch, args.latent, args.mixing, device)
         fake_img, _ = generator(noise)
 
-        if args.augment:
-            real_img_aug, _ = augment(real_img, ada_aug_p)
-            fake_img, _ = augment(fake_img, ada_aug_p)
-
-        else:
-            real_img_aug = real_img
-
         # ACA PONER LO DE LA RED DE CLASIFICACION CRUCES, para el **DISCRIMINATOR**
         scaled_data = None
         scaled_data_reals = 0
@@ -321,6 +314,13 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
             # convert to tensor + gpu and send this value instead of centroid_distances_torch
             scaled_data = torch.tensor(scaled_data).to(device)
             scaled_data_reals = torch.tensor(scaled_data_reals).to(device)
+
+        if args.augment:
+            real_img_aug, _ = augment(real_img, ada_aug_p)
+            fake_img, _ = augment(fake_img, ada_aug_p)
+
+        else:
+            real_img_aug = real_img
 
         fake_pred = discriminator(fake_img)
         real_pred = discriminator(real_img_aug)
