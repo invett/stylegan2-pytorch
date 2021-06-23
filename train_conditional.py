@@ -52,7 +52,7 @@ def data_sampler(dataset, shuffle, distributed):
 def requires_grad(model, flag=True):
     for p in model.parameters():
         p.requires_grad = flag
-        
+
 
 def accumulate(model1, model2, decay=0.999):
     par1 = dict(model1.named_parameters())
@@ -242,7 +242,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         requires_grad(discriminator, False)
 
         noise = mixing_noise(args.batch, args.latent, args.mixing, device)
-        fake_labels = get_random_labels(args.batch, args.num_classes, device)  
+        fake_labels = get_random_labels(args.batch, args.num_classes, device)
         fake_img, _ = generator(noise, fake_labels)
 
         if args.augment:
@@ -262,7 +262,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         if g_regularize:
             path_batch_size = max(1, args.batch // args.path_batch_shrink)
             noise = mixing_noise(path_batch_size, args.latent, args.mixing, device)
-            fake_labels = get_random_labels(path_batch_size, args.num_classes, device) 
+            fake_labels = get_random_labels(path_batch_size, args.num_classes, device)
             fake_img, latents = generator(noise, fake_labels, return_latents=True)
 
             path_loss, mean_path_length, path_lengths = g_path_regularize(
@@ -345,7 +345,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
                     plt.close('all')
                     if wandb and args.wandb:
                         wandb.log({"current grid": wandb.Image(im, caption=f"Iter:{str(i).zfill(6)}")} )
-                    
+
 
             if i % 10000 == 0:
                 torch.save(
@@ -367,106 +367,42 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="StyleGAN2 trainer")
 
-    #parser.add_argument("path", type=str, help="path to the lmdb dataset")
+    # parser.add_argument("path", type=str, help="path to the lmdb dataset")
     parser.add_argument("--path", type=str, action='append', help="path(s) to the image dataset", required=True)
 
     parser.add_argument('--arch', type=str, default='stylegan2', help='model architectures (stylegan2 | swagan)')
-    parser.add_argument(
-        "--iter", type=int, default=800000, help="total training iterations"
-    )
-    parser.add_argument(
-        "--batch", type=int, default=16, help="batch sizes for each gpus"
-    )
-    parser.add_argument(
-        "--n_sample",
-        type=int,
-        default=64,
-        help="number of the samples generated during training",
-    )
-    parser.add_argument(
-        "--size", type=int, default=256, help="image sizes for the model"
-    )
-    parser.add_argument(
-        "--r1", type=float, default=10, help="weight of the r1 regularization"
-    )
-    parser.add_argument(
-        "--path_regularize",
-        type=float,
-        default=2,
-        help="weight of the path length regularization",
-    )
-    parser.add_argument(
-        "--path_batch_shrink",
-        type=int,
-        default=2,
-        help="batch size reducing factor for the path length regularization (reduce memory consumption)",
-    )
-    parser.add_argument(
-        "--d_reg_every",
-        type=int,
-        default=16,
-        help="interval of the applying r1 regularization",
-    )
-    parser.add_argument(
-        "--g_reg_every",
-        type=int,
-        default=4,
-        help="interval of the applying path length regularization",
-    )
-    parser.add_argument(
-        "--mixing", type=float, default=0.9, help="probability of latent code mixing"
-    )
-    parser.add_argument(
-        "--ckpt",
-        type=str,
-        default=None,
-        help="path to the checkpoints to resume training",
-    )
+    parser.add_argument("--iter", type=int, default=800000, help="total training iterations")
+    parser.add_argument("--batch", type=int, default=16, help="batch sizes for each gpus")
+    parser.add_argument("--n_sample", type=int, default=64, help="number of the samples generated during training", )
+    parser.add_argument("--size", type=int, default=256, help="image sizes for the model")
+    parser.add_argument("--r1", type=float, default=10, help="weight of the r1 regularization")
+    parser.add_argument("--path_regularize", type=float, default=2, help="weight of the path length regularization", )
+    parser.add_argument("--path_batch_shrink", type=int, default=2,
+        help="batch size reducing factor for the path length regularization (reduce memory consumption)", )
+    parser.add_argument("--d_reg_every", type=int, default=16, help="interval of the applying r1 regularization", )
+    parser.add_argument("--g_reg_every", type=int, default=4,
+        help="interval of the applying path length regularization", )
+    parser.add_argument("--mixing", type=float, default=0.9, help="probability of latent code mixing")
+    parser.add_argument("--ckpt", type=str, default=None, help="path to the checkpoints to resume training", )
     parser.add_argument("--lr", type=float, default=0.002, help="learning rate")
-    parser.add_argument(
-        "--channel_multiplier",
-        type=int,
-        default=2,
-        help="channel multiplier factor for the model. config-f = 2, else = 1",
-    )
-    parser.add_argument(
-        "--wandb", action="store_true", help="use weights and biases logging"
-    )
-    parser.add_argument(
-        "--local_rank", type=int, default=0, help="local rank for distributed training"
-    )
-    parser.add_argument(
-        "--augment", action="store_true", help="apply non leaking augmentation"
-    )
-    parser.add_argument(
-        "--augment_p",
-        type=float,
-        default=0,
-        help="probability of applying augmentation. 0 = use adaptive augmentation",
-    )
-    parser.add_argument(
-        "--ada_target",
-        type=float,
-        default=0.6,
-        help="target augmentation probability for adaptive augmentation",
-    )
-    parser.add_argument(
-        "--ada_length",
-        type=int,
-        default=500 * 1000,
-        help="target duraing to reach augmentation probability for adaptive augmentation",
-    )
-    parser.add_argument(
-        "--ada_every",
-        type=int,
-        default=256,
-        help="probability update interval of the adaptive augmentation",
-    )
-    parser.add_argument(
-        "--num_classes",
-        type=int,
-        default=7,
-    )
+    parser.add_argument("--channel_multiplier", type=int, default=2,
+        help="channel multiplier factor for the model. config-f = 2, else = 1", )
+    parser.add_argument("--wandb", action="store_true", help="use weights and biases logging")
+    parser.add_argument("--local_rank", type=int, default=0, help="local rank for distributed training")
+    parser.add_argument("--augment", action="store_true", help="apply non leaking augmentation")
+    parser.add_argument("--augment_p", type=float, default=0,
+        help="probability of applying augmentation. 0 = use adaptive augmentation", )
+    parser.add_argument("--ada_target", type=float, default=0.6,
+        help="target augmentation probability for adaptive augmentation", )
+    parser.add_argument("--ada_length", type=int, default=500 * 1000,
+        help="target duraing to reach augmentation probability for adaptive augmentation", )
+    parser.add_argument("--ada_every", type=int, default=256,
+        help="probability update interval of the adaptive augmentation", )
+    parser.add_argument("--num_classes", type=int, default=7, )
+
+    parser.add_argument('--decimate', type=int, default=1, help='select decimation modality for stylegan dataloader')
+    parser.add_argument('--decimateAlcala', type=int, default=30, help='decimate step for alcala datasets')
+    parser.add_argument('--decimateKitti', type=int, default=10, help='decimate step for kitti datasets')
 
     args = parser.parse_args()
 
@@ -559,7 +495,9 @@ if __name__ == "__main__":
     )
 
     # dataset = MultiResolutionDataset(args.path, transform, args.size)
-    dataset = txt_dataloader_styleGAN(args.path, transform=transform)
+    dataset = txt_dataloader_styleGAN(args.path, transform=transform, decimateStep=args.decimate,
+                                      decimateAlcala=args.decimateAlcala, decimateKitti=args.decimateKitti,
+                                      conditional=True)
     loader = data.DataLoader(
         dataset,
         batch_size=args.batch,

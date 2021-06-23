@@ -426,7 +426,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
             fake_img, _ = augment(fake_img, ada_aug_p)
 
         fake_pred = discriminator(fake_img)
-        g_loss = g_nonsaturating_loss(fake_pred, scaled_data)
+        g_loss = g_nonsaturating_loss(fake_pred, scaled_data) # esta es "unica", mixed.
 
         loss_dict["g"] = g_loss
 
@@ -631,7 +631,8 @@ if __name__ == "__main__":
         discriminator = nn.parallel.DistributedDataParallel(discriminator, device_ids=[args.local_rank],
                                                             output_device=args.local_rank, broadcast_buffers=False, )
 
-    transform = transforms.Compose([transforms.Resize((256, 256)),  # please, no: transforms.RandomHorizontalFlip(),
+    transform = transforms.Compose([transforms.Resize((256, 256)),
+                                    # please, no: transforms.RandomHorizontalFlip(),
                                     transforms.ToTensor(),
                                     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=True), ])
 
