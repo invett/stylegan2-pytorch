@@ -10,26 +10,49 @@ def generate(args, g_ema, device, mean_latent):
     with torch.no_grad():
         g_ema.eval()
         for i in tqdm(range(args.pics)):
-            labels = torch.tensor(args.label).repeat(args.sample)
-            labels = torch.nn.functional.one_hot(labels, num_classes=args.num_classes).float().to(device)
+           
             sample_z = torch.randn(args.sample, args.latent, device=device)
             
             if args.conditional:
-                sample, _ = g_ema(
-                    [sample_z], labels, truncation=args.truncation, truncation_latent=mean_latent
-                )
+                if args.label == -1:
+                    for label in range(0,7):
+                        labels = torch.tensor(label).repeat(args.sample)
+                        labels = torch.nn.functional.one_hot(labels, num_classes=args.num_classes).float().to(device)
+                        sample, _ = g_ema(
+                            [sample_z], labels, truncation=args.truncation, truncation_latent=mean_latent
+                        )
+                        utils.save_image(
+                        sample,
+                        f"generated_samples/conditional/{args.file_name}-{str(label)}_{str(i).zfill(6)}.png",
+                        nrow=1,
+                        normalize=True,
+                        range=(-1, 1),
+                        )
+                else:
+                    labels = torch.tensor(args.label).repeat(args.sample)
+                    labels = torch.nn.functional.one_hot(labels, num_classes=args.num_classes).float().to(device)
+                    sample, _ = g_ema(
+                        [sample_z], labels, truncation=args.truncation, truncation_latent=mean_latent        
+                    )
+                    utils.save_image(
+                    sample,
+                    f"generated_samples/conditional/{args.file_name}-{str(args.label)}_{str(i).zfill(6)}.png",
+                    nrow=1,
+                    normalize=True,
+                    range=(-1, 1),
+                    )
             else:
                 sample, _ = g_ema(
                     [sample_z], truncation=args.truncation, truncation_latent=mean_latent
                 )
 
-            utils.save_image(
-                sample,
-                f"generated_samples/{args.file_name}-{str(i).zfill(6)}.png",
-                nrow=1,
-                normalize=True,
-                range=(-1, 1),
-            )
+                utils.save_image(
+                    sample,
+                    f"generated_samples/{args.file_name}-{str(i).zfill(6)}.png",
+                    nrow=1,
+                    normalize=True,
+                    range=(-1, 1),
+                )
 
 
 if __name__ == "__main__":
@@ -92,8 +115,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--label",
         type=int,
-        default=1,
-        help='class to generate',
+        default=-1,
+        help='Class to generate. -1 if generate all labels.',
     )
 
 
